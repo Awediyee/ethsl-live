@@ -1,0 +1,177 @@
+/* Modern Popup Menu Styles */
+.menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  /* Slightly lighter overlay */
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.menu-panel {
+  position: absolute;
+  top: 70px;
+  /* Position below header */
+  right: 20px;
+  width: 320px;
+  height: auto;
+  /* Auto height based on content */
+  max-height: 85vh;
+  background-color: #ffffff;
+  /* Fresh white background */
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
+}
+
+/* Dark mode support logic can go here if needed, but "fresh" implies light usually. 
+   Assuming variable usage for consistency with User wishes */
+[data-theme='dark'] .menu-panel {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Header Row: Back Arrow + Brand */
+.menu-header-row {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  /* Stacked as per typical sidebar, but maybe row for popup? */
+  /* The image showed Arrow top left, Logo below it */
+  gap: 16px;
+}
+
+.menu-close-btn {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+  margin-left: -5px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.menu-close-btn:hover {
+  opacity: 1;
+}
+
+.close-icon {
+  font-size: 18px;
+  /* Smaller size as requested */
+  color: #1976d2;
+  font-weight: bold;
+}
+
+.menu-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 5px;
+}
+
+.brand-logo {
+  width: 48px;
+  height: 48px;
+  background-color: #1976d2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.hand-icon {
+  font-size: 24px;
+  color: white;
+}
+
+.brand-text {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  color: #333;
+  line-height: 1.3;
+}
+
+[data-theme='dark'] .brand-text {
+  color: var(--text-primary);
+}
+
+/* Navigation */
+.menu-nav {
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* Nice spacing */
+}
+
+.menu-nav a {
+  text-decoration: none;
+  color: #4b5563;
+  /* Gray-600 */
+  font-size: 16px;
+  font-weight: 400;
+  padding: 12px 0;
+  transition: all 0.2s;
+  display: block;
+}
+
+[data-theme='dark'] .menu-nav a {
+  color: var(--text-secondary);
+}
+
+.menu-nav a:hover {
+  color: #1976d2;
+  padding-left: 5px;
+  /* Subtle slide */
+}
+
+.menu-footer {
+  padding: 24px;
+  margin-top: 10px;
+}
+
+.sign-out-link {
+  color: #ef4444;
+  /* Red */
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.sign-out-link:hover {
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .menu-panel {
+    top: 60px;
+    right: 15px;
+    left: 15px;
+    /* Full widthish on mobile */
+    width: auto;
+    max-width: none;
+  }
+}

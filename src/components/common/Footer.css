@@ -1,0 +1,11 @@
+.footer {
+  background-color: var(--bg-secondary);
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 -2px 4px var(--shadow-color);
+}
+
+.footer p {
+  color: var(--text-secondary);
+  font-size: 14px;
+}

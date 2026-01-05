@@ -1,0 +1,365 @@
+.translation-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.translation-container {
+  display: flex;
+  gap: 40px;
+  align-items: center;
+  margin-bottom: 40px;
+  width: 100%;
+  justify-content: center;
+}
+
+.input-section,
+.output-section {
+  flex: 1;
+  max-width: 500px;
+}
+
+.input-section h2,
+.output-section h2 {
+  font-size: 20px;
+  font-weight: 400;
+  margin-bottom: 20px;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.upload-box {
+  border: 2px solid var(--border-color);
+  border-bottom: 4px solid var(--primary-color);
+  border-radius: 8px;
+  padding: 0;
+  background-color: var(--bg-secondary);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.15);
+  overflow: hidden;
+  position: relative;
+}
+
+.upload-button {
+  cursor: pointer;
+  padding: 60px;
+}
+
+.plus-icon {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.plus-icon:hover {
+  background-color: var(--primary-hover);
+}
+
+.arrow-icon {
+  font-size: 48px;
+  color: var(--primary-color);
+  font-weight: bold;
+}
+
+.translation-box {
+  border: 2px solid var(--border-color);
+  border-bottom: 4px solid var(--primary-color);
+  border-radius: 8px;
+  padding: 40px;
+  background-color: var(--bg-secondary);
+  min-height: 300px;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.15);
+}
+
+.translation-box p {
+  color: var(--text-secondary);
+  font-size: 16px;
+  margin: 0;
+}
+
+.translation-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.speaker-button {
+  background: none;
+  border: 2px solid var(--primary-color);
+  border-radius: 50%;
+  width: 45px;
+  height: 45px;
+  min-width: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: var(--primary-color);
+}
+
+.speaker-button:hover {
+  background-color: var(--primary-color);
+  color: white;
+  transform: scale(1.05);
+}
+
+.speaker-icon {
+  width: 22px;
+  height: 22px;
+  transition: transform 0.3s;
+}
+
+.speaker-icon.speaking {
+  animation: speakerPulse 1s infinite;
+}
+
+@keyframes speakerPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.start-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 15px 60px;
+  font-size: 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-bottom: 20px;
+}
+
+.start-button:hover {
+  background-color: var(--primary-hover);
+}
+
+.feedback-link {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  text-decoration: underline;
+}
+
+.feedback-link:hover {
+  color: var(--text-primary);
+}
+
+.webcam-video {
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.camera-container {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-video {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  object-fit: cover;
+  transform: scaleX(-1);
+  display: block;
+}
+
+.recording-indicator {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 8px 15px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 10;
+}
+
+.recording-dot {
+  width: 12px;
+  height: 12px;
+  background-color: #ff0000;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.recording-time {
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: monospace;
+}
+
+.camera-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.btn-record-inline,
+.btn-stop-inline {
+  padding: 12px 30px;
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.3s;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.btn-record-inline {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.btn-record-inline:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-stop-inline {
+  background-color: #d32f2f;
+  color: white;
+}
+
+.btn-stop-inline:hover {
+  background-color: #c62828;
+}
+
+.record-icon {
+  font-size: 20px;
+}
+
+.stop-icon {
+  font-size: 18px;
+}
+
+@media (max-width: 768px) {
+  .translation-area {
+    padding: 20px 15px;
+  }
+
+  .translation-container {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .input-section,
+  .output-section {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .input-section h2,
+  .output-section h2 {
+    font-size: 18px;
+  }
+
+  .upload-box,
+  .translation-box {
+    min-height: 250px;
+  }
+
+  .plus-icon {
+    width: 80px;
+    height: 80px;
+    font-size: 40px;
+  }
+
+  .arrow-icon {
+    font-size: 36px;
+    transform: rotate(90deg);
+  }
+
+  .translation-box {
+    padding: 25px;
+  }
+
+  .start-button {
+    padding: 12px 40px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .translation-area {
+    padding: 15px 10px;
+  }
+
+  .input-section h2,
+  .output-section h2 {
+    font-size: 16px;
+  }
+
+  .upload-box,
+  .translation-box {
+    min-height: 200px;
+  }
+
+  .plus-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 32px;
+  }
+
+  .translation-box {
+    padding: 20px;
+  }
+
+  .translation-box p {
+    font-size: 14px;
+  }
+
+  .start-button {
+    padding: 10px 30px;
+    font-size: 14px;
+  }
+}
