@@ -1,114 +1,172 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import BaseModal from '../common/BaseModal'
 import ThemeToggle from './ThemeToggle'
+import LanguageSelect from './LanguageSelect'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useAuth } from '../../contexts/AuthContext'
+import { useToast } from '../../contexts/ToastContext'
 import ApiService from '../../services/api'
+import './SettingsModal.css'
 
-function SettingsModal({ onClose, userData, activeTab: initialTab, onChangePassword }) {
-    const { t, language, changeLanguage } = useLanguage();
-    const [activeTab, setActiveTab] = useState(initialTab || 'Profile');
-    const [name, setName] = useState(userData?.name || '')
+function SettingsModal({ onClose, userData, activeTab: propsActiveTab, onChangePassword }) {
+    const { t } = useLanguage();
+    const { updateUser } = useAuth();
+    const { showToast } = useToast();
+    const [activeTab, setActiveTab] = useState(propsActiveTab || 'Profile');
+    const [firstName, setFirstName] = useState(userData?.firstName || '')
+    const [lastName, setLastName] = useState(userData?.lastName || '')
     const [email] = useState(userData?.email || '')
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        const fetchAccountInfo = async () => {
+            try {
+                const response = await ApiService.getAccountInfo();
+                if (response && response.data) {
+                    const { firstName, lastName } = response.data;
+                    if (firstName) setFirstName(firstName);
+                    if (lastName) setLastName(lastName);
+                } else if (response) {
+                    // Fallback if data is directly in response
+                    const { firstName, lastName } = response;
+                    if (firstName) setFirstName(firstName);
+                    if (lastName) setLastName(lastName);
+                }
+            } catch (error) {
+                console.error('Failed to fetch account info:', error);
+            }
+        };
+
+        if (activeTab === 'Profile') {
+            fetchAccountInfo();
+        }
+    }, [activeTab]);
 
     const handleTabClick = (tab) => {
         setActiveTab(tab);
     }
 
+    const handleSaveProfile = async (e) => {
+        e.preventDefault();
+
+        // Ensure token exists before trying to save
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            showToast(t('sessionExpired') || 'Session expired, please login again', 'error');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const updateData = {};
+            // Only add to updateData if the value is different from current user data
+            if (firstName !== (userData?.firstName || '')) updateData.firstName = firstName;
+            if (lastName !== (userData?.lastName || '')) updateData.lastName = lastName;
+
+            if (Object.keys(updateData).length === 0) {
+                showToast(t('noChanges') || 'No changes to save', 'info');
+                setIsSaving(false);
+                return;
+            }
+
+            console.log('Sending profile update (changed only):', updateData);
+            await ApiService.updateAccountInfo(updateData);
+            updateUser(updateData);
+            showToast(t('profileUpdateSuccess'), 'success');
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            const errorMessage = error.data?.message || t('profileUpdateError');
+            showToast(errorMessage, 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    }
+
     return (
-        <BaseModal title={t('settings')} onClose={onClose}>
-            <div style={{ display: 'flex', gap: '20px', height: '100%' }}>
-                {/* Simple Sidebar for Settings Sub-sections */}
-                <div style={{ width: '150px', borderRight: '1px solid var(--border-color)', paddingRight: '10px' }}>
+        <BaseModal title={t('settings')} onClose={onClose} maxWidth="800px">
+            <div className="settings-container">
+                {/* Sidebar Navigation */}
+                <div className="settings-sidebar">
                     {['Profile', 'General'].map(tab => (
                         <button
                             key={tab}
                             onClick={() => handleTabClick(tab)}
-                            style={{
-                                display: 'block',
-                                width: '100%',
-                                textAlign: 'left',
-                                padding: '10px',
-                                background: activeTab === tab ? 'var(--shadow-color)' : 'transparent',
-                                border: 'none',
-                                color: activeTab === tab ? 'var(--primary-color)' : 'var(--text-secondary)',
-                                cursor: 'pointer',
-                                borderRadius: '4px',
-                                marginBottom: '5px'
-                            }}
+                            className={`settings-nav-btn ${activeTab === tab ? 'active' : ''}`}
+                            aria-label={t(tab.toLowerCase())}
                         >
+                            <span className="settings-nav-icon">
+                                {tab === 'Profile' ? (
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                        <circle cx="12" cy="7" r="4" />
+                                    </svg>
+                                ) : (
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="3" />
+                                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                                    </svg>
+                                )}
+                            </span>
                             {t(tab.toLowerCase())}
                         </button>
                     ))}
                 </div>
 
-                <div style={{ flex: 1, overflowY: 'auto' }}>
+                {/* Content Area */}
+                <div className="settings-content">
                     {activeTab === 'Profile' && (
-                        <div>
-                            <h3 style={{ marginBottom: '20px', color: 'var(--primary-color)' }}>{t('profile')}</h3>
+                        <div className="animate-fade-in">
+                            <h3 className="settings-section-title">{t('profile')}</h3>
 
-                            {/* User Info Form */}
-                            <form onSubmit={e => e.preventDefault()}>
-                                <div style={{ marginBottom: '15px' }}>
-                                    <label style={{ display: 'block', marginBottom: '5px', color: 'var(--text-secondary)' }}>Name</label>
+                            <form className="settings-form" onSubmit={handleSaveProfile}>
+                                <div className="settings-input-group">
+                                    <label>{t('firstName') || 'First Name'}</label>
                                     <input
                                         type="text"
-                                        value={name}
-                                        onChange={e => setName(e.target.value)}
-                                        style={{
-                                            width: '100%',
-                                            padding: '8px',
-                                            borderRadius: '4px',
-                                            border: '1px solid var(--border-color)',
-                                            background: 'var(--bg-primary)',
-                                            color: 'var(--text-primary)'
-                                        }}
+                                        value={firstName}
+                                        onChange={e => setFirstName(e.target.value)}
+                                        placeholder={t('firstName') || "First Name"}
                                     />
                                 </div>
-                                <div style={{ marginBottom: '20px' }}>
-                                    <label style={{ display: 'block', marginBottom: '5px', color: 'var(--text-secondary)' }}>Email</label>
+                                <div className="settings-input-group">
+                                    <label>{t('lastName') || 'Last Name'}</label>
+                                    <input
+                                        type="text"
+                                        value={lastName}
+                                        onChange={e => setLastName(e.target.value)}
+                                        placeholder={t('lastName') || "Last Name"}
+                                    />
+                                </div>
+                                <div className="settings-input-group">
+                                    <label>{t('email') || 'Email'}</label>
                                     <input
                                         type="email"
                                         value={email}
                                         disabled
-                                        style={{
-                                            width: '100%',
-                                            padding: '8px',
-                                            borderRadius: '4px',
-                                            border: '1px solid var(--border-color)',
-                                            background: 'var(--bg-primary)',
-                                            color: 'var(--text-secondary)',
-                                            opacity: 0.7
-                                        }}
+                                        className="disabled-input"
                                     />
                                 </div>
-                                <button style={{
-                                    padding: '8px 16px',
-                                    background: 'var(--primary-color)',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    marginBottom: '20px'
-                                }}>Save Profile</button>
+                                <div>
+                                    <button
+                                        type="submit"
+                                        className="btn-primary"
+                                        style={{ padding: '10px 24px' }}
+                                        disabled={isSaving}
+                                    >
+                                        {isSaving ? (t('saving') || 'Saving...') : (t('saveProfile') || 'Save Profile')}
+                                    </button>
+                                </div>
                             </form>
 
-                            <hr style={{ border: '0', borderTop: '1px solid var(--border-color)', margin: '20px 0' }} />
+                            <hr className="settings-divider" />
 
-                            {/* Change Password Section */}
-                            <div style={{ marginBottom: '20px' }}>
-                                <h4 style={{ marginBottom: '15px', color: 'var(--text-primary)' }}>Security</h4>
+                            <div className="settings-security-section">
+                                <h4>{t('security') || 'Security'}</h4>
                                 <button
+                                    className="btn-secondary"
                                     onClick={() => {
                                         onClose();
                                         onChangePassword && onChangePassword();
-                                    }}
-                                    style={{
-                                        padding: '8px 16px',
-                                        background: 'transparent',
-                                        border: '1px solid var(--primary-color)',
-                                        color: 'var(--primary-color)',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer'
                                     }}
                                 >
                                     {t('changePassword')}
@@ -118,33 +176,23 @@ function SettingsModal({ onClose, userData, activeTab: initialTab, onChangePassw
                     )}
 
                     {activeTab === 'General' && (
-                        <div>
-                            <h3 style={{ marginBottom: '20px', color: 'var(--primary-color)' }}>{t('general')}</h3>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        <div className="animate-fade-in">
+                            <h3 className="settings-section-title">{t('general')}</h3>
+                            <div className="settings-form">
                                 {/* Theme Setting */}
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
-                                    <span>{t('theme')}</span>
+                                <div className="settings-row">
+                                    <div className="settings-row-label">
+                                        <span className="settings-label-text">{t('theme')}</span>
+                                    </div>
                                     <ThemeToggle />
                                 </div>
 
                                 {/* Language Setting */}
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px', background: 'var(--bg-primary)', borderRadius: '8px' }}>
-                                    <span>{t('language')}</span>
-                                    <select
-                                        value={language}
-                                        onChange={(e) => changeLanguage(e.target.value)}
-                                        style={{
-                                            padding: '8px 12px',
-                                            borderRadius: '6px',
-                                            border: '1px solid var(--border-color)',
-                                            background: 'var(--bg-secondary)',
-                                            color: 'var(--text-primary)',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        <option value="en">English</option>
-                                        <option value="am">አማርኛ (Amharic)</option>
-                                    </select>
+                                <div className="settings-row">
+                                    <div className="settings-row-label">
+                                        <span className="settings-label-text">{t('language')}</span>
+                                    </div>
+                                    <LanguageSelect />
                                 </div>
                             </div>
                         </div>

@@ -1,24 +1,73 @@
 import { useState, useRef, useEffect } from 'react'
 import './TranslationArea.css'
+import './TranslationAreaExtras.css'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useToast } from '../../contexts/ToastContext'
+import LoadingSpinner from '../common/LoadingSpinner'
+import MediaPipeCamera from './MediaPipeCamera'
+import { useSignLanguageManager } from '../../hooks/useSignLanguageManager'
 
 function TranslationArea({ onFeedbackClick }) {
   const { t } = useLanguage()
+  const { showToast } = useToast()
+
+  // UI State
   const [isRecording, setIsRecording] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
   const [showCamera, setShowCamera] = useState(false)
   const [recordingTime, setRecordingTime] = useState(0)
   const [translation, setTranslation] = useState('')
   const [recordedVideo, setRecordedVideo] = useState(null)
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const [isTranslating, setIsTranslating] = useState(false)
+  const [uploadedVideoFile, setUploadedVideoFile] = useState(null)
+  const [isProcessingUpload, setIsProcessingUpload] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [isUploadedVideoMode, setIsUploadedVideoMode] = useState(false)
+  const [isUploadedVideoPaused, setIsUploadedVideoPaused] = useState(false)
 
+  // Refs
   const videoRef = useRef(null)
+  const canvasRef = useRef(null)
   const mediaRecorderRef = useRef(null)
+  const fileInputRef = useRef(null)
   const chunksRef = useRef([])
   const streamRef = useRef(null)
   const timerRef = useRef(null)
+  const uploadedVideoRef = useRef(null)
 
+  // Sign Language Manager Hook
+  const {
+    state: {
+      wsUrl,
+      setWsUrl,
+      wsConnected,
+      setWsConnected,
+      connectionStatus,
+      mediaPipeInitialized,
+      fps,
+      currentPrediction
+    },
+    actions: {
+      handleConnect,
+      handleDisconnect,
+      ensureInitialized,
+      startProcessing,
+      stopProcessing,
+      processVideoFile
+    }
+  } = useSignLanguageManager(videoRef, canvasRef, setTranslation)
+
+  // Cleanup on unmount
   useEffect(() => {
-    if (isRecording) {
+    return () => {
+      stopWebcam()
+    }
+  }, [])
+
+  // Recording Timer
+  useEffect(() => {
+    if (isRecording && !isPaused) {
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1)
       }, 1000)
@@ -32,14 +81,9 @@ function TranslationArea({ onFeedbackClick }) {
         clearInterval(timerRef.current)
       }
     }
-  }, [isRecording])
+  }, [isRecording, isPaused])
 
-  useEffect(() => {
-    return () => {
-      stopWebcam()
-    }
-  }, [])
-
+  // Camera stream attachment
   useEffect(() => {
     if (showCamera && videoRef.current && streamRef.current) {
       videoRef.current.srcObject = streamRef.current
@@ -47,8 +91,8 @@ function TranslationArea({ onFeedbackClick }) {
     }
   }, [showCamera])
 
+  // Load Voices
   useEffect(() => {
-    // Load voices
     const loadVoices = () => {
       const voices = window.speechSynthesis.getVoices()
       console.log('Available voices:', voices.map(v => `${v.name} (${v.lang})`))
@@ -71,7 +115,7 @@ function TranslationArea({ onFeedbackClick }) {
       }
     } catch (error) {
       console.error('Error accessing webcam:', error)
-      alert('Unable to access webcam. Please grant camera permissions.')
+      alert(t('cameraPermissionError') || 'Unable to access webcam. Please grant camera permissions.')
     }
   }
 
@@ -82,8 +126,15 @@ function TranslationArea({ onFeedbackClick }) {
     }
   }
 
-  const startRecording = () => {
+  const startRecording = async () => {
     if (!streamRef.current) return
+
+    // Initialize MediaPipe if not already done
+    const success = await ensureInitialized()
+    if (!success) {
+      alert(t('mediapipeInitError') || 'Failed to initialize MediaPipe. Please refresh and try again.')
+      return
+    }
 
     const mediaRecorder = new MediaRecorder(streamRef.current)
     mediaRecorderRef.current = mediaRecorder
@@ -98,37 +149,179 @@ function TranslationArea({ onFeedbackClick }) {
     mediaRecorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' })
       setRecordedVideo(blob)
-      setTranslation(t('videoRecorded'))
-      stopWebcam()
-      setShowCamera(false)
+      stopProcessing()
     }
 
     mediaRecorder.start()
     setIsRecording(true)
     setRecordingTime(0)
+    setTranslation('')
+
+    // Start MediaPipe processing
+    startProcessing()
   }
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
+      setIsPaused(false)
+      stopProcessing()
+    }
+
+    // Close camera and return to initial state
+    stopWebcam()
+    setShowCamera(false)
+    setRecordedVideo(null)
+  }
+
+  const closeWebcam = () => {
+    // Stop webcam without recording
+    stopWebcam()
+    setShowCamera(false)
+    setRecordedVideo(null)
+    stopProcessing()
+  }
+
+  const pauseRecording = () => {
+    if (mediaRecorderRef.current && isRecording && !isPaused) {
+      mediaRecorderRef.current.pause()
+      setIsPaused(true)
+      stopProcessing()
     }
   }
 
-  const handlePlusClick = () => {
-    startWebcam()
+  const resumeRecording = () => {
+    if (mediaRecorderRef.current && isRecording && isPaused) {
+      mediaRecorderRef.current.resume()
+      setIsPaused(false)
+      startProcessing()
+    }
   }
 
-  const handleStartNow = () => {
-    if (recordedVideo) {
-      setTranslation(t('translating'))
-      setTimeout(() => {
-        setTranslation('እኔ ደህና ነኝ እና ጥሩ እየሰራሁ ነው') // Amharic: Hello, how are you?
-      }, 2000)
+  const backToLiveRecording = () => {
+    // Clear uploaded video state
+    setUploadedVideoFile(null)
+    setRecordedVideo(null)
+    setIsUploadedVideoMode(false)
+    setIsUploadedVideoPaused(false)
+    setShowCamera(false)
+    setTranslation('')
+
+    // Stop any video playback
+    if (videoRef.current) {
+      videoRef.current.pause()
+      videoRef.current.src = ''
+      videoRef.current.srcObject = null
+    }
+
+    // Stop processing
+    stopProcessing()
+  }
+
+  const pauseUploadedVideo = () => {
+    if (videoRef.current && isUploadedVideoMode) {
+      videoRef.current.pause()
+      setIsUploadedVideoPaused(true)
+      stopProcessing()
+    }
+  }
+
+  const resumeUploadedVideo = () => {
+    if (videoRef.current && isUploadedVideoMode) {
+      videoRef.current.play()
+      setIsUploadedVideoPaused(false)
+      startProcessing()
+    }
+  }
+
+  const stopUploadedVideo = () => {
+    // Stop video playback and return to initial state
+    if (videoRef.current) {
+      videoRef.current.pause()
+      videoRef.current.src = ''
+    }
+
+    setUploadedVideoFile(null)
+    setRecordedVideo(null)
+    setIsUploadedVideoMode(false)
+    setIsUploadedVideoPaused(false)
+    setShowCamera(false)
+    setTranslation('')
+    stopProcessing()
+  }
+
+  // WebSocket Handlers Wrapper
+  const onConnect = () => {
+    handleConnect()
+  }
+
+  const handlePlusClick = async () => {
+    await startWebcam()
+    // Don't auto-start recording - let user decide
+    // This allows them to close webcam if they don't want to record
+  }
+
+  const handleVideoUpload = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0]
+    if (file && file.type.startsWith('video/')) {
+      setUploadedVideoFile(file)
+      const videoURL = URL.createObjectURL(file)
+      setRecordedVideo(file)
+      setShowCamera(true)
+      setIsUploadedVideoMode(true)
+      setIsProcessingUpload(true)
+      setTranslation('')
+      setUploadProgress(0)
+
+      // Initialize MediaPipe if not already done
+      const initialized = await ensureInitialized()
+      if (!initialized) {
+        alert(t('mediapipeInitError') || 'Failed to initialize MediaPipe. Please refresh and try again.')
+        setIsProcessingUpload(false)
+        return
+      }
+
+      // Create video element for processing
+      const videoElement = document.createElement('video')
+      videoElement.src = videoURL
+      videoElement.muted = true
+      videoElement.loop = false
+      uploadedVideoRef.current = videoElement
+
+      // Wait for video to load metadata
+      videoElement.onloadedmetadata = async () => {
+        // Display the video in the video ref
+        if (videoRef.current) {
+          videoRef.current.srcObject = null
+          videoRef.current.src = videoURL
+          videoRef.current.loop = true
+          videoRef.current.play()
+        }
+
+        // Start processing
+        startProcessing()
+        await processVideoFile(videoElement, (progress) => {
+          setUploadProgress(progress)
+        })
+
+        setIsProcessingUpload(false)
+        // Keep the video playing in loop for display
+        if (videoRef.current) {
+          videoRef.current.currentTime = 0
+          videoRef.current.play()
+        }
+      }
     } else {
-      alert(t('recordFirst'))
+      alert('Please select a valid video file')
     }
   }
+
+
 
   const speakText = async () => {
     if (!translation || translation === t('translationPlaceholder') || translation === t('translating') || translation === t('videoRecorded')) {
@@ -247,17 +440,14 @@ function TranslationArea({ onFeedbackClick }) {
       utterance.volume = 1
 
       utterance.onstart = () => {
-        console.log('Web Speech started')
         setIsSpeaking(true)
       }
 
       utterance.onend = () => {
-        console.log('Web Speech ended')
         setIsSpeaking(false)
       }
 
       utterance.onerror = (event) => {
-        console.error('Web Speech error:', event.error)
         setIsSpeaking(false)
       }
 
@@ -275,40 +465,60 @@ function TranslationArea({ onFeedbackClick }) {
     <main className="translation-area">
       <div className="translation-container">
         <div className="input-section">
-          <h2>{t('signLanguage')}</h2>
+          <div className="section-header">
+            <h2>{t('signLanguage')}</h2>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
           <div className="upload-box">
             {showCamera ? (
-              <div className="camera-container">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="camera-video"
-                />
-                {isRecording && (
-                  <div className="recording-indicator">
-                    <span className="recording-dot"></span>
-                    <span className="recording-time">{formatTime(recordingTime)}</span>
-                  </div>
-                )}
-                <div className="camera-controls">
-                  {!isRecording ? (
-                    <button className="btn-record-inline" onClick={startRecording}>
-                      <span className="record-icon">●</span> {t('startRecording')}
-                    </button>
-                  ) : (
-                    <button className="btn-stop-inline" onClick={stopRecording}>
-                      <span className="stop-icon">■</span> {t('stopRecording')}
-                    </button>
-                  )}
+              <MediaPipeCamera
+                videoRef={videoRef}
+                canvasRef={canvasRef}
+                isRecording={isRecording}
+                isPaused={isPaused}
+                recordingTime={recordingTime}
+                formatTime={formatTime}
+                fps={fps}
+                currentPrediction={currentPrediction}
+                isUploadedVideoMode={isUploadedVideoMode}
+                isUploadedVideoPaused={isUploadedVideoPaused}
+                // Controls
+                onStartRecording={startRecording}
+                onStopRecording={stopRecording}
+                onPauseRecording={pauseRecording}
+                onResumeRecording={resumeRecording}
+                onBackToLive={backToLiveRecording}
+                onPauseUploadedVideo={pauseUploadedVideo}
+                onResumeUploadedVideo={resumeUploadedVideo}
+                onStopUploadedVideo={stopUploadedVideo}
+                onCloseWebcam={closeWebcam}
+              />
+            ) : (
+              <div className="upload-placeholder" onClick={handlePlusClick} title={t('startRecording')}>
+                <div className="plus-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 7l-7 5 7 5V7z" />
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                  </svg>
                 </div>
               </div>
-            ) : (
-              <div className="upload-button" onClick={handlePlusClick}>
-                <div className="plus-icon">+</div>
-              </div>
             )}
+          </div>
+          <div className="upload-actions">
+            <button className="btn-upload" onClick={handleVideoUpload} title={t('uploadVideo')}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              {t('uploadVideo')}
+            </button>
           </div>
         </div>
 
@@ -318,8 +528,15 @@ function TranslationArea({ onFeedbackClick }) {
           <h2>{t('text')}</h2>
           <div className="translation-box">
             <div className="translation-content">
-              <p>{translation || t('translationPlaceholder')}</p>
-              {translation && translation !== t('translationPlaceholder') && translation !== t('translating') && translation !== t('videoRecorded') && (
+              {isTranslating ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                  <LoadingSpinner />
+                  <p style={{ color: 'var(--text-secondary)' }}>{t('translating')}</p>
+                </div>
+              ) : (
+                <p className="animate-fade-in">{translation || t('translationPlaceholder')}</p>
+              )}
+              {translation && !isTranslating && translation !== t('translationPlaceholder') && translation !== t('translating') && translation !== t('videoRecorded') && (
                 <button
                   className="speaker-button"
                   onClick={speakText}
@@ -349,11 +566,16 @@ function TranslationArea({ onFeedbackClick }) {
         </div>
       </div>
 
-      <button className="start-button" onClick={handleStartNow}>
-        {t('startNow')}
-      </button>
+      {isProcessingUpload && (
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <LoadingSpinner />
+          <p style={{ color: 'var(--text-secondary)', marginTop: '10px' }}>
+            Processing video... {uploadProgress.toFixed(0)}%
+          </p>
+        </div>
+      )}
 
-      <button className="feedback-link" onClick={onFeedbackClick}>
+      <button className="btn-ghost" onClick={onFeedbackClick} style={{ marginTop: '20px' }}>
         {t('sendFeedback')}
       </button>
     </main>

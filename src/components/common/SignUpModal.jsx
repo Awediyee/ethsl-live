@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import './Modal.css'
-import ApiService from '../../services/api'
+import BaseModal from './BaseModal'
+import LoadingSpinner from './LoadingSpinner'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useAuth } from '../../contexts/AuthContext'
+import ApiService from '../../services/api'
 
 function SignUpModal({ onClose, onVerify, email }) {
   const { t } = useLanguage()
@@ -13,14 +14,13 @@ function SignUpModal({ onClose, onVerify, email }) {
   const [isResending, setIsResending] = useState(false)
 
   const handleCodeChange = (index, value) => {
+    if (value && !/^\d+$/.test(value)) return
+
     if (value.length <= 1) {
       const newCode = [...code]
       newCode[index] = value
       setCode(newCode)
-
-      // Clear error when user starts typing
       if (error) setError('')
-
       if (value && index < 5) {
         document.getElementById(`code-${index + 1}`)?.focus()
       }
@@ -32,12 +32,7 @@ function SignUpModal({ onClose, onVerify, email }) {
     const otpCode = code.join('')
 
     if (otpCode.length !== 6) {
-      setError(t('otpRequired') || 'Enter 6-digit code')
-      return
-    }
-
-    if (!/^\d{6}$/.test(otpCode)) {
-      setError(t('otpInvalid') || 'Digital code only')
+      setError(t('otpRequired'))
       return
     }
 
@@ -45,17 +40,11 @@ function SignUpModal({ onClose, onVerify, email }) {
     setError('')
 
     try {
-      console.log('Attempting OTP verification with:', { email, otp: otpCode })
-
       const user = await auth.verifyOTP(email, otpCode)
-      console.log('OTP verification successful:', user)
-
-      // Pass the verification code and response to parent component
       if (onVerify) onVerify(otpCode, { user })
     } catch (error) {
       console.error('OTP verification failed:', error)
-      const errorMessage = error.data?.message || error.message || 'Verification failed'
-      setError(errorMessage)
+      setError(error.data?.message || error.message || t('verificationFailed'))
     } finally {
       setIsLoading(false)
     }
@@ -66,86 +55,95 @@ function SignUpModal({ onClose, onVerify, email }) {
     setError('')
 
     try {
-      console.log('Resending OTP to:', email)
-
       await ApiService.resendOTP(email)
-
-      // Clear the code inputs
       setCode(['', '', '', '', '', ''])
-
-      // Focus on first input
       document.getElementById('code-0')?.focus()
-
-      console.log('OTP resent')
     } catch (error) {
       console.error('Failed to resend OTP:', error)
-      setError(error.message || 'Failed to resend')
+      setError(error.message || t('resendFailed'))
     } finally {
       setIsResending(false)
     }
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>✕</button>
-        <h2 className="modal-title signup-title">{t('verifyEmail')}</h2>
-
-        <p style={{ textAlign: 'center', marginBottom: '20px', color: 'var(--text-secondary)' }}>
+    <BaseModal title={t('verifyEmail')} onClose={onClose} maxWidth="450px">
+      <div className="animate-fade-in" style={{ padding: '0 8px' }}>
+        <p style={{ textAlign: 'center', marginBottom: '24px', color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
           {t('codeSentTo')}<br />
-          <strong>{email}</strong>
+          <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>
         </p>
 
+        {error && (
+          <div className="error-message" style={{
+            textAlign: 'center',
+            marginBottom: '20px',
+            color: '#ef4444',
+            fontSize: '0.9rem',
+            padding: '10px',
+            background: 'rgba(239, 68, 68, 0.1)',
+            borderRadius: '6px'
+          }}>
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>{t('verificationCode')}</label>
-            <div className="verification-code">
+          <div className="form-group" style={{ marginBottom: '25px' }}>
+            <label style={{ display: 'block', marginBottom: '12px', fontWeight: '500', textAlign: 'center' }}>
+              {t('verificationCode')}
+            </label>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
               {code.map((digit, index) => (
                 <input
                   key={index}
                   id={`code-${index}`}
                   type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   maxLength="1"
                   value={digit}
                   onChange={(e) => handleCodeChange(index, e.target.value)}
-                  className={`code-input ${error ? 'error' : ''}`}
+                  className={error ? 'error' : ''}
                   disabled={isLoading}
+                  style={{
+                    width: '45px',
+                    height: '50px',
+                    textAlign: 'center',
+                    fontSize: '1.25rem',
+                    fontWeight: '600',
+                    border: '1px solid var(--border-color)',
+                    padding: '0'
+                  }}
                 />
               ))}
             </div>
-            {error && <span className="error-message">{error}</span>}
           </div>
 
           <button
             type="submit"
-            className="btn-primary btn-full"
+            className="btn-primary"
             disabled={isLoading}
+            style={{ width: '100%', marginBottom: '20px' }}
           >
-            {isLoading ? t('verifying') : t('verifyAndComplete')}
+            {isLoading ? <LoadingSpinner size="small" color="white" /> : t('verifyAndComplete')}
           </button>
 
-          <p style={{ textAlign: 'center', marginTop: '15px', fontSize: '14px', color: 'var(--text-secondary)' }}>
+          <div style={{ textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
             {t('didntReceive')}
             <button
               type="button"
+              className="btn-ghost"
               onClick={handleResend}
               disabled={isResending || isLoading}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--primary-color)',
-                cursor: (isResending || isLoading) ? 'not-allowed' : 'pointer',
-                textDecoration: 'underline',
-                marginLeft: '5px',
-                opacity: (isResending || isLoading) ? 0.6 : 1
-              }}
+              style={{ padding: '4px 8px', textDecoration: 'underline', color: 'var(--primary-color)' }}
             >
-              {isResending ? t('resending') : t('resend')}
+              {isResending ? <LoadingSpinner size="small" /> : t('resend')}
             </button>
-          </p>
+          </div>
         </form>
       </div>
-    </div>
+    </BaseModal>
   )
 }
 

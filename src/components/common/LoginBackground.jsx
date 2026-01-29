@@ -59,10 +59,10 @@ function LoginBackground() {
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
 
         const material = new THREE.PointsMaterial({
-            size: 0.02,
+            size: 0.015,
             vertexColors: true,
             transparent: true,
-            opacity: 0.7,
+            opacity: 0.8,
             blending: THREE.AdditiveBlending,
             sizeAttenuation: true
         })

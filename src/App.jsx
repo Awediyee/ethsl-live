@@ -16,17 +16,20 @@ import AddRoleModal from './components/admin/AddRoleModal'
 import ManageUsersModal from './components/admin/ManageUsersModal'
 import ManageRolesModal from './components/admin/ManageRolesModal'
 import ManageAdminModal from './components/admin/ManageAdminModal'
-import ViewReportsModal from './components/admin/ViewReportsModal'
 import ActivityLogsModal from './components/admin/ActivityLogsModal'
+import ManageSubscriptionsModal from './components/admin/ManageSubscriptionsModal'
 import AboutModal from './components/user/AboutModal'
 import HistoryModal from './components/user/HistoryModal'
 import SubscriptionModal from './components/user/SubscriptionModal'
 import ChangePasswordModal from './components/user/ChangePasswordModal'
 import ForgotPasswordModal from './components/common/ForgotPasswordModal'
+import ApiKeysModal from './components/user/ApiKeysModal'
 import LoginPage from './pages/LoginPage'
 import ApiService from './services/api' // Keep for direct util access if needed
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ModalProvider, useModal } from './contexts/ModalContext'
+import { ToastProvider } from './contexts/ToastContext'
+import { WebSocketProvider } from './contexts/WebSocketContext'
 
 function AppContent() {
   const { isLoggedIn, user, loading, logout } = useAuth()
@@ -105,6 +108,10 @@ function AppContent() {
         <SubscriptionModal onClose={() => modalActions.setActiveModal(null)} />
       )}
 
+      {activeModal === 'Api' && (
+        <ApiKeysModal onClose={() => modalActions.setActiveModal(null)} />
+      )}
+
       {activeModal === 'ChangePassword' && (
         <ChangePasswordModal
           onClose={() => modalActions.setActiveModal(null)}
@@ -167,19 +174,29 @@ function AppContent() {
       {activeModal === 'ActivityLogs' && (
         <ActivityLogsModal onClose={() => modalActions.setActiveModal(null)} />
       )}
+
+      {activeModal === 'ManageSubscriptions' && (
+        <ManageSubscriptionsModal onClose={() => modalActions.setActiveModal(null)} />
+      )}
     </div>
   )
 }
 
+const Router = BrowserRouter
+
 function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <AuthProvider>
         <ModalProvider>
-          <AppContent />
+          <ToastProvider>
+            <WebSocketProvider>
+              <AppContent />
+            </WebSocketProvider>
+          </ToastProvider>
         </ModalProvider>
       </AuthProvider>
-    </BrowserRouter>
+    </Router>
   )
 }
 

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useMemo } from 'react';
+import { createContext, useContext, useMemo, useState } from 'react';
 
 const ModalContext = createContext(null);
 
@@ -9,19 +9,23 @@ export const ModalProvider = ({ children }) => {
     // Detailed Modals (User Profile etc)
     const [activeModal, setActiveModal] = useState(null); // 'Settings', 'About', 'History', 'Api', 'Subscription', 'ChangePassword'
 
-    const openFeedback = () => setShowFeedbackModal(true);
+    const openFeedback = () => {
+        setShowFeedbackModal(true);
+    };
 
     const openModal = (modalName) => {
         setActiveModal(modalName);
     };
 
     const closeModal = (modalName) => {
-        if (activeModal === modalName) setActiveModal(null);
+        if (activeModal === modalName) {
+            setActiveModal(null);
+        }
     };
 
     const closeAll = () => {
-        setShowFeedbackModal(false);
         setActiveModal(null);
+        setShowFeedbackModal(false);
     };
 
     const value = useMemo(() => ({

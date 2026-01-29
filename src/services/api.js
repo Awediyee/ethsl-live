@@ -68,9 +68,12 @@ class ApiService {
       ...options.headers,
     }
 
-    // Add auth token if available
-    if (this.authToken) {
-      headers['Authorization'] = `Bearer ${this.authToken}`
+    // Add auth token if available (check instance state or localStorage fallback)
+    const token = this.authToken || localStorage.getItem('authToken')
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    } else {
+      console.warn('⚠️ Making request without auth token:', url)
     }
 
     const config = {
@@ -93,7 +96,7 @@ class ApiService {
       }
     }
 
-    console.log('🚀 Making API request:', {
+    console.log('Making API request:', {
       url,
       method: interceptedConfig.method,
       headers: interceptedConfig.headers,
@@ -105,7 +108,7 @@ class ApiService {
       const response = await fetch(url, interceptedConfig)
       clearTimeout(timeoutId)
 
-      console.log('📡 API response received:', {
+      console.log('API response received:', {
         url,
         status: response.status,
         statusText: response.statusText,
@@ -170,7 +173,7 @@ class ApiService {
     } catch (error) {
       clearTimeout(timeoutId)
 
-      console.error('💥 API request failed:', {
+      console.error('API request failed:', {
         url,
         error: error.name,
         message: error.message,
@@ -311,16 +314,25 @@ class ApiService {
     })
   }
 
+  // Get Reset Password Token (Verify OTP for reset)
+  async getResetPasswordToken(email, otp) {
+    return this.makeRequest('/accounts/reset-password-token', {
+      method: 'POST',
+      body: JSON.stringify({
+        email,
+        otp
+      }),
+    })
+  }
+
   // Change Password
-  async changePassword(email, otp, oldPassword, newPassword, confirmPassword) {
+  async changePassword(currentPassword, newPassword) {
+    console.log('🔐 Changing password')
     return this.makeRequest('/accounts/change-password', {
       method: 'PATCH',
       body: JSON.stringify({
-        email,
-        otp,
-        old_password: oldPassword,
-        new_password: newPassword,
-        confirm_password: confirmPassword
+        currentPassword,
+        newPassword
       }),
     })
   }
@@ -338,7 +350,7 @@ class ApiService {
   async resetPassword(accountId, newPassword, token) {
     console.log('🔐 Resetting password')
     return this.makeRequest('/accounts/reset-password', {
-      method: 'POST',
+      method: 'PATCH',
       body: JSON.stringify({
         accountId,
         newPassword,
@@ -462,6 +474,27 @@ class ApiService {
 
     // Clear cached profile data
     this.clearCacheForEndpoint('/accounts/profile')
+    return response
+  }
+
+  // Get account info (firstName, lastName)
+  async getAccountInfo() {
+    console.log('👤 Fetching account info')
+    return this.makeRequest('/accounts-infos', {
+      method: 'GET',
+    })
+  }
+
+  // Update account info (firstName, lastName)
+  async updateAccountInfo(accountData) {
+    console.log('👤 Updating account info:', accountData)
+    const response = await this.makeRequest('/accounts-infos', {
+      method: 'PATCH',
+      body: JSON.stringify(accountData),
+    })
+
+    // Clear cache if needed
+    this.clearCacheForEndpoint('/accounts-infos')
     return response
   }
 
@@ -677,6 +710,59 @@ class ApiService {
 
     console.error('❌ All API health checks failed')
     return { success: false, error: 'All endpoints failed' }
+  }
+
+  // Subscription Packages
+  async getSubscriptionPackages() {
+    console.log('📦 Fetching subscription packages')
+    return this.makeRequest('/subscription-packages', {
+      method: 'GET',
+    })
+  }
+
+  async createSubscriptionPackage(packageData) {
+    console.log('📦 Creating subscription package:', packageData)
+    const response = await this.makeRequest('/subscription-packages', {
+      method: 'POST',
+      body: JSON.stringify(packageData),
+    })
+    this.clearCacheForEndpoint('/subscription-packages')
+    return response
+  }
+
+  async updateSubscriptionPackage(id, packageData) {
+    console.log(`📦 Updating subscription package ${id}:`, packageData)
+    const response = await this.makeRequest(`/subscription-packages/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(packageData),
+    })
+    this.clearCacheForEndpoint('/subscription-packages')
+    return response
+  }
+
+  async deleteSubscriptionPackage(id) {
+    console.log(`📦 Deleting subscription package ${id}`)
+    const response = await this.makeRequest(`/subscription-packages/${id}`, {
+      method: 'DELETE',
+    })
+    this.clearCacheForEndpoint('/subscription-packages')
+    return response
+  }
+
+  // User Current Subscription Status
+  async getUserCurrentSubscription() {
+    console.log('📦 Checking user current subscription status')
+    return this.makeRequest('/subscription', {
+      method: 'GET',
+    })
+  }
+
+  async initializeSubscription(payload) {
+    console.log('📦 Initializing subscription upgrade:', payload)
+    return this.makeRequest('/subscriptions/initialize', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
   }
 
   // Batch multiple requests

@@ -1,6 +1,8 @@
 export class User {
     constructor(data = {}) {
         this.email = data.email || '';
+        this.firstName = data.firstName || '';
+        this.lastName = data.lastName || '';
         this.role = data.role || (data.isAdmin ? 'admin' : 'user');
         this.isAdmin = this.role !== 'user';
         this.sub = data.sub || null;

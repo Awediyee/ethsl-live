@@ -13,7 +13,7 @@ function Header({ isLoggedIn, isAdmin, onLoginClick, userEmail, userData, onLogo
       <div className="header-content">
         <div className="header-brand">
           <span className="header-logo">✋</span>
-          <h1 className="header-title">ETHSL-LIVE</h1>
+          <h1 className="header-title">{t('appName')}</h1>
         </div>
         <div className="header-actions">
           {/* Only show menu button for non-admin logged in users, or login button for guests */}

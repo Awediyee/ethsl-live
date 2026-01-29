@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import './Modal.css'
-import ApiService from '../../services/api'
+import BaseModal from './BaseModal'
+import LoadingSpinner from './LoadingSpinner'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -42,40 +42,23 @@ function RegisterModal({ onClose, onRegister }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-
     if (!validateForm()) return
 
     setIsLoading(true)
     setErrors({})
 
     try {
-      console.log('Attempting registration with:', { email, password: '***' })
-
       const response = await auth.register(email, password)
-      console.log('Registration successful:', response)
-
-      // Pass the registration data and response to parent component (App.jsx will show OTP modal)
       if (onRegister) onRegister(email, password, response)
     } catch (error) {
       console.error('Registration failed:', error)
-
-      let errorMessage = error.data?.message || error.message || 'Registration failed'
-
-      if (error.status === 400 && !error.data?.message) {
-        // Fallback for 400 if no specific message
-        errorMessage = t('fillAllFields')
-      }
-
-      setErrors({
-        general: errorMessage
-      })
+      setErrors({ general: error.data?.message || error.message || t('registrationFailed') })
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleInputChange = (field, value) => {
-    // Clear error when user starts typing
     if (errors[field] || errors.general) {
       setErrors(prev => ({ ...prev, [field]: '', general: '' }))
     }
@@ -85,22 +68,26 @@ function RegisterModal({ onClose, onRegister }) {
     if (field === 'confirmPassword') setConfirmPassword(value)
   }
 
-
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>✕</button>
-        <h2 className="modal-title signup-title">{t('createAccount')}</h2>
-
+    <BaseModal title={t('createAccount')} onClose={onClose} maxWidth="450px">
+      <div className="animate-fade-in" style={{ padding: '0 8px' }}>
         {errors.general && (
-          <div className="error-message" style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <div className="error-message" style={{
+            textAlign: 'center',
+            marginBottom: '20px',
+            color: '#ef4444',
+            fontSize: '0.9rem',
+            padding: '10px',
+            background: 'rgba(239, 68, 68, 0.1)',
+            borderRadius: '6px'
+          }}>
             {errors.general}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>{t('email')}</label>
+          <div className="form-group" style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>{t('email')}</label>
             <input
               type="email"
               value={email}
@@ -109,12 +96,12 @@ function RegisterModal({ onClose, onRegister }) {
               className={errors.email ? 'error' : ''}
               disabled={isLoading}
             />
-            {errors.email && <span className="error-message">{errors.email}</span>}
+            {errors.email && <span style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '4px', display: 'block' }}>{errors.email}</span>}
           </div>
 
-          <div className="form-group">
-            <label>{t('password')}</label>
-            <div className="password-input-wrapper">
+          <div className="form-group" style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>{t('password')}</label>
+            <div className="password-input-wrapper" style={{ position: 'relative' }}>
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
@@ -122,32 +109,28 @@ function RegisterModal({ onClose, onRegister }) {
                 placeholder={t('enterPassword')}
                 className={errors.password ? 'error' : ''}
                 disabled={isLoading}
+                style={{ paddingRight: '45px' }}
               />
               <button
                 type="button"
-                className="password-toggle-btn"
+                className="btn-ghost"
                 onClick={() => setShowPassword(!showPassword)}
                 tabIndex="-1"
+                style={{ position: 'absolute', right: '5px', top: '50%', transform: 'translateY(-50%)', padding: '8px', height: 'auto' }}
               >
                 {showPassword ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                    <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-                  </svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
                 ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                  </svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                 )}
               </button>
             </div>
-            {errors.password && <span className="error-message">{errors.password}</span>}
+            {errors.password && <span style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '4px', display: 'block' }}>{errors.password}</span>}
           </div>
 
-          <div className="form-group">
-            <label>{t('confirmPassword')}</label>
-            <div className="password-input-wrapper">
+          <div className="form-group" style={{ marginBottom: '25px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>{t('confirmPassword')}</label>
+            <div className="password-input-wrapper" style={{ position: 'relative' }}>
               <input
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
@@ -155,41 +138,36 @@ function RegisterModal({ onClose, onRegister }) {
                 placeholder={t('enterConfirmPassword')}
                 className={errors.confirmPassword ? 'error' : ''}
                 disabled={isLoading}
+                style={{ paddingRight: '45px' }}
               />
               <button
                 type="button"
-                className="password-toggle-btn"
+                className="btn-ghost"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 tabIndex="-1"
+                style={{ position: 'absolute', right: '5px', top: '50%', transform: 'translateY(-50%)', padding: '8px', height: 'auto' }}
               >
                 {showConfirmPassword ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                    <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-                  </svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
                 ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                  </svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                 )}
               </button>
             </div>
-            {errors.confirmPassword && <span className="error-message">{errors.confirmPassword}</span>}
+            {errors.confirmPassword && <span style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '4px', display: 'block' }}>{errors.confirmPassword}</span>}
           </div>
 
           <button
             type="submit"
-            className="btn-primary btn-full"
+            className="btn-primary"
             disabled={isLoading}
-            style={{ marginBottom: '10px' }}
+            style={{ width: '100%', marginBottom: '10px' }}
           >
-            {isLoading ? t('creatingAccount') : t('register')}
+            {isLoading ? <LoadingSpinner size="small" color="white" /> : t('register')}
           </button>
-
         </form>
       </div>
-    </div>
+    </BaseModal>
   )
 }
 

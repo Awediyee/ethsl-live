@@ -1,0 +1,261 @@
+/* Main Container */
+.subscription-container {
+    padding: 10px;
+    max-height: 75vh;
+    overflow-y: auto;
+}
+
+/* Responsive Grid */
+.subscription-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin: 8px auto;
+    max-width: 1000px;
+    padding: 5px 5px 20px 5px;
+    align-items: stretch;
+}
+
+/* Card Styling */
+.subscription-card {
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    padding: 24px 18px;
+    position: relative;
+    border: 1px solid var(--border-color);
+    transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 3px 15px -4px rgba(0, 0, 0, 0.12);
+}
+
+.subscription-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.25);
+    border-color: var(--primary-color);
+}
+
+/* Featured & Current States */
+.subscription-card.featured {
+    border: 2px solid var(--primary-color);
+    background: linear-gradient(165deg, var(--bg-secondary), rgba(var(--primary-rgb, 74, 144, 226), 0.06));
+    transform: scale(1.02);
+    z-index: 2;
+}
+
+.subscription-card.current {
+    border: 2px solid #10b981;
+    background: linear-gradient(165deg, var(--bg-secondary), rgba(16, 185, 129, 0.05));
+}
+
+.subscription-card.featured:hover {
+    transform: translateY(-6px) scale(1.04);
+}
+
+/* Badges */
+.badge-featured {
+    position: absolute;
+    top: 15px;
+    right: -42px;
+    background: var(--primary-color);
+    color: white;
+    padding: 3px 50px;
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    transform: rotate(45deg);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+    letter-spacing: 1px;
+}
+
+/* Card Content */
+.card-header {
+    margin-bottom: 18px;
+    text-align: center;
+}
+
+.package-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.package-price {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 3px;
+}
+
+.price-val {
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: var(--primary-color);
+    line-height: 1;
+}
+
+.price-unit {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    opacity: 0.7;
+}
+
+.package-desc {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin-bottom: 20px;
+    text-align: center;
+    flex-grow: 1;
+    min-height: 40px;
+}
+
+/* Features */
+.features-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 24px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.feature-tick {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.tick-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(var(--primary-rgb, 74, 144, 226), 0.1);
+    color: var(--primary-color);
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.subscription-card.current .tick-icon {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+/* Upgrade Button */
+.upgrade-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    font-weight: 800;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.upgrade-btn:not(:disabled) {
+    background: var(--primary-color);
+    color: white;
+}
+
+.upgrade-btn:not(:disabled):hover {
+    background: var(--primary-dark, #357abd);
+    box-shadow: 0 6px 15px -4px rgba(var(--primary-rgb, 74, 144, 226), 0.4);
+    transform: translateY(-2px);
+}
+
+.upgrade-btn:disabled {
+    background: var(--border-color);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Responsiveness Media Queries */
+@media (max-width: 900px) {
+    .subscription-grid {
+        grid-template-columns: repeat(2, 1fr);
+        max-width: 700px;
+    }
+}
+
+@media (max-width: 600px) {
+    .subscription-grid {
+        grid-template-columns: 1fr;
+        max-width: 320px;
+    }
+}
+
+.upgrade-btn:not(:disabled) {
+    background: var(--primary-color);
+    color: white;
+}
+
+.upgrade-btn:not(:disabled):hover {
+    background: var(--primary-dark, #357abd);
+    box-shadow: 0 15px 30px -10px rgba(var(--primary-rgb, 74, 144, 226), 0.6);
+    transform: translateY(-3px);
+}
+
+.upgrade-btn:disabled {
+    background: var(--border-color);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Responsiveness Media Queries */
+@media (max-width: 1100px) {
+    .subscription-grid {
+        grid-template-columns: repeat(2, 1fr);
+        max-width: 850px;
+    }
+
+    .subscription-card.featured {
+        transform: none;
+    }
+
+    .subscription-card.featured:hover {
+        transform: translateY(-12px);
+    }
+}
+
+@media (max-width: 768px) {
+    .subscription-grid {
+        grid-template-columns: 1fr;
+        max-width: 450px;
+        gap: 24px;
+    }
+
+    .package-title {
+        font-size: 1.6rem;
+    }
+
+    .price-val {
+        font-size: 3.25rem;
+    }
+
+    .subscription-card {
+        padding: 40px 24px;
+    }
+}
+
+@media (max-height: 800px) {
+    .subscription-container {
+        max-height: 75vh;
+    }
+}

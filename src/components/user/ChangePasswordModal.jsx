@@ -1,325 +1,139 @@
 import { useState } from 'react'
 import BaseModal from '../common/BaseModal'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useToast } from '../../contexts/ToastContext'
 import ApiService from '../../services/api'
 
-function ChangePasswordModal({ onClose, userEmail }) {
+function ChangePasswordModal({ onClose }) {
     const { t } = useLanguage()
+    const { showToast } = useToast()
 
-    // Wizard State
-    const [step, setStep] = useState(1) // 1: Old Password, 2: OTP, 3: New Password
-
-    // Form Data
-    const [oldPassword, setOldPassword] = useState('')
-    const [otp, setOtp] = useState(['', '', '', '', '', '']) // Array for 6 digits
+    const [currentPassword, setCurrentPassword] = useState('')
     const [newPassword, setNewPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
 
+    // Single Visibility State for all fields
+    const [showPasswords, setShowPasswords] = useState(false)
+
     // UI State
-    const [message, setMessage] = useState('')
-    const [error, setError] = useState('')
     const [isLoading, setIsLoading] = useState(false)
 
-    // Step 1: Handle Old Password Submit
-    const handleOldPasswordSubmit = (e) => {
-        e.preventDefault()
-        setError('')
-        if (!oldPassword) {
-            setError('Please enter your current password')
-            return
-        }
-        // Move to OTP step and send OTP
-        setStep(2)
-        sendOTP()
-    }
-
-    // Step 2: Send OTP
-    const sendOTP = async () => {
-        setIsLoading(true)
-        setMessage('')
-        setError('')
-        try {
-            await ApiService.resendOTP(userEmail)
-            setMessage(t('otpSent'))
-        } catch (err) {
-            console.error(err)
-            setError(err.message || 'Failed to send OTP')
-        } finally {
-            setIsLoading(false)
-        }
-    }
-
-    // Handle OTP Input Change
-    const handleOtpChange = (element, index) => {
-        if (isNaN(element.value)) return false
-
-        const newOtp = [...otp]
-        newOtp[index] = element.value
-        setOtp(newOtp)
-
-        // Focus next input
-        if (element.nextSibling && element.value !== '') {
-            element.nextSibling.focus()
-        }
-    }
-
-    const handleOtpKeyDown = (e, index) => {
-        if (e.key === 'Backspace' && !otp[index] && index > 0) {
-            // Focus previous input on backspace if current is empty
-            const inputs = e.target.parentNode.children;
-            inputs[index - 1].focus();
-        }
-    }
-
-    // Step 2: Verify OTP
-    const handleVerifyOTP = async (e) => {
-        e.preventDefault()
-        setError('')
-        const otpCode = otp.join('')
-        if (otpCode.length !== 6) {
-            setError('Please enter the full 6-digit code')
-            return
-        }
-
-        setIsLoading(true)
-        try {
-            // Verify OTP before moving to next step
-            await ApiService.verifyOTP(userEmail, otpCode)
-            setStep(3)
-            setMessage('')
-        } catch (err) {
-            console.error(err)
-            setError(err.message || 'Invalid OTP')
-        } finally {
-            setIsLoading(false)
-        }
-    }
-
-    // Step 3: Change Password
     const handleChangePassword = async (e) => {
         e.preventDefault()
-        setError('')
-        setMessage('')
 
         if (newPassword !== confirmPassword) {
-            setError('Passwords do not match')
+            showToast(t('passwordMismatch'), 'error')
             return
         }
 
         if (newPassword.length < 6) {
-            setError('Password must be at least 6 characters long')
+            showToast(t('passwordLength'), 'error')
             return
         }
 
         setIsLoading(true)
         try {
-            const otpCode = otp.join('')
-            await ApiService.changePassword(userEmail, otpCode, oldPassword, newPassword, confirmPassword)
-            setMessage(t('passwordChanged'))
+            await ApiService.changePassword(currentPassword, newPassword)
+            showToast(t('passwordChangeSuccess'), 'success')
 
-            // Close modal after success delay
+            // Close modal after success
             setTimeout(() => {
                 onClose()
-            }, 2000)
+            }, 1500)
         } catch (err) {
-            console.error(err)
-            setError(err.message || 'Failed to change password')
+            console.error('Password change error:', err)
+            const errorMessage = err.data?.message || t('passwordChangeError')
+            showToast(errorMessage, 'error')
         } finally {
             setIsLoading(false)
         }
     }
 
-    // Render Logic
     return (
-        <BaseModal title={t('changePassword')} onClose={onClose}>
-            <div style={{ padding: '20px' }}>
-                {/* Progress Indicators */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px', gap: '10px' }}>
-                    {[1, 2, 3].map(s => (
-                        <div key={s} style={{
-                            width: '10px',
-                            height: '10px',
-                            borderRadius: '50%',
-                            background: step >= s ? 'var(--primary-color)' : 'var(--border-color)',
-                            transition: 'background 0.3s'
-                        }} />
-                    ))}
+        <BaseModal title={t('changePassword')} onClose={onClose} maxWidth="450px">
+            <div style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0 }}>
+                        {t('securityVerify') || 'Enter your password details to update your account security.'}
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => setShowPasswords(!showPasswords)}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--primary-color)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '4px',
+                            borderRadius: '4px',
+                            transition: 'background 0.2s'
+                        }}
+                        title={showPasswords ? t('hidePasswords') || 'Hide passwords' : t('showPasswords') || 'Show passwords'}
+                        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                    >
+                        {showPasswords ? (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                            </svg>
+                        ) : (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                        )}
+                    </button>
                 </div>
 
-                {/* Step 1: Old Password */}
-                {step === 1 && (
-                    <form onSubmit={handleOldPasswordSubmit}>
-                        <p style={{ marginBottom: '15px', color: 'var(--text-secondary)' }}>
-                            {t('enterOldPassword')}
-                        </p>
-                        <div style={{ marginBottom: '15px' }}>
-                            <input
-                                type="password"
-                                placeholder={t('currentPassword')}
-                                value={oldPassword}
-                                onChange={e => setOldPassword(e.target.value)}
-                                autoFocus
-                                required
-                                style={{
-                                    width: '100%',
-                                    padding: '12px',
-                                    borderRadius: '8px',
-                                    border: '1px solid var(--border-color)',
-                                    background: 'var(--bg-primary)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '16px'
-                                }}
-                            />
-                        </div>
-                        <button
-                            type="submit"
-                            style={{
-                                width: '100%',
-                                padding: '12px',
-                                background: 'var(--primary-color)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                fontSize: '16px'
-                            }}
-                        >
-                            {t('next')}
-                        </button>
-                    </form>
-                )}
+                <form onSubmit={handleChangePassword} className="settings-form">
+                    <div className="settings-input-group">
+                        <label>{t('currentPassword')}</label>
+                        <input
+                            type={showPasswords ? 'text' : 'password'}
+                            placeholder={t('currentPassword')}
+                            value={currentPassword}
+                            onChange={e => setCurrentPassword(e.target.value)}
+                            required
+                            autoFocus
+                        />
+                    </div>
 
-                {/* Step 2: OTP Entry */}
-                {step === 2 && (
-                    <form onSubmit={handleVerifyOTP}>
-                        <p style={{ marginBottom: '15px', color: 'var(--text-secondary)', textAlign: 'center' }}>
-                            {t('enterOtp')} <br /><strong>{userEmail}</strong>
-                        </p>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '20px' }}>
-                            {otp.map((data, index) => (
-                                <input
-                                    key={index}
-                                    type="text"
-                                    maxLength="1"
-                                    value={data}
-                                    onChange={e => handleOtpChange(e.target, index)}
-                                    onKeyDown={e => handleOtpKeyDown(e, index)}
-                                    onFocus={e => e.target.select()}
-                                    style={{
-                                        width: '40px',
-                                        height: '50px',
-                                        fontSize: '20px',
-                                        textAlign: 'center',
-                                        borderRadius: '8px',
-                                        border: '1px solid var(--border-color)',
-                                        background: 'var(--bg-primary)',
-                                        color: 'var(--text-primary)'
-                                    }}
-                                />
-                            ))}
-                        </div>
+                    <div className="settings-input-group">
+                        <label>{t('newPassword')}</label>
+                        <input
+                            type={showPasswords ? 'text' : 'password'}
+                            placeholder={t('newPassword')}
+                            value={newPassword}
+                            onChange={e => setNewPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+
+                    <div className="settings-input-group">
+                        <label>{t('confirmPassword')}</label>
+                        <input
+                            type={showPasswords ? 'text' : 'password'}
+                            placeholder={t('confirmPassword')}
+                            value={confirmPassword}
+                            onChange={e => setConfirmPassword(e.target.value)}
+                            required
+                        />
+                    </div>
+
+                    <div style={{ marginTop: '24px' }}>
                         <button
                             type="submit"
                             disabled={isLoading}
-                            style={{
-                                width: '100%',
-                                padding: '12px',
-                                background: 'var(--primary-color)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '8px',
-                                cursor: isLoading ? 'not-allowed' : 'pointer',
-                                fontSize: '16px',
-                                opacity: isLoading ? 0.7 : 1
-                            }}
+                            className="btn-primary"
+                            style={{ width: '100%', padding: '12px' }}
                         >
-                            {isLoading ? t('verifying') : t('verifyCode')}
+                            {isLoading ? t('updating') : t('updatePassword')}
                         </button>
-                        <div style={{ marginTop: '15px', textAlign: 'center' }}>
-                            <button
-                                type="button"
-                                onClick={sendOTP}
-                                disabled={isLoading}
-                                style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    color: 'var(--primary-color)',
-                                    textDecoration: 'underline',
-                                    cursor: 'pointer',
-                                    fontSize: '14px'
-                                }}
-                            >
-                                {t('resend')}
-                            </button>
-                        </div>
-                    </form>
-                )}
-
-                {/* Step 3: New Password */}
-                {step === 3 && (
-                    <form onSubmit={handleChangePassword}>
-                        <p style={{ marginBottom: '15px', color: 'var(--text-secondary)' }}>
-                            {t('enterNewPassword')}
-                        </p>
-                        <div style={{ marginBottom: '15px' }}>
-                            <input
-                                type="password"
-                                placeholder={t('newPassword')}
-                                value={newPassword}
-                                onChange={e => setNewPassword(e.target.value)}
-                                required
-                                style={{
-                                    width: '100%',
-                                    padding: '12px',
-                                    borderRadius: '8px',
-                                    border: '1px solid var(--border-color)',
-                                    background: 'var(--bg-primary)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '16px'
-                                }}
-                            />
-                        </div>
-                        <div style={{ marginBottom: '20px' }}>
-                            <input
-                                type="password"
-                                placeholder={t('confirmPassword')}
-                                value={confirmPassword}
-                                onChange={e => setConfirmPassword(e.target.value)}
-                                required
-                                style={{
-                                    width: '100%',
-                                    padding: '12px',
-                                    borderRadius: '8px',
-                                    border: '1px solid var(--border-color)',
-                                    background: 'var(--bg-primary)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '16px'
-                                }}
-                            />
-                        </div>
-                        <button
-                            type="submit"
-                            disabled={isLoading}
-                            style={{
-                                width: '100%',
-                                padding: '12px',
-                                background: 'var(--primary-color)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '8px',
-                                cursor: isLoading ? 'not-allowed' : 'pointer',
-                                fontSize: '16px',
-                                opacity: isLoading ? 0.7 : 1
-                            }}
-                        >
-                            {isLoading ? t('updating') : t('changePassword')}
-                        </button>
-                    </form>
-                )}
-
-                {/* Global Message/Error Display */}
-                {error && <p style={{ marginTop: '15px', color: '#ef4444', textAlign: 'center', fontSize: '14px' }}>{error}</p>}
-                {message && !error && <p style={{ marginTop: '15px', color: '#10b981', textAlign: 'center', fontSize: '14px' }}>{message}</p>}
+                    </div>
+                </form>
             </div>
         </BaseModal>
     )

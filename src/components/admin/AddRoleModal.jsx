@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useLanguage } from '../../contexts/LanguageContext'
+import api from '../../services/api'
 import './AdminConfigurationModal.css' // Reuse similar styles
 
 function AddRoleModal({ onClose, onSave, initialData = null }) {
@@ -31,10 +32,10 @@ function AddRoleModal({ onClose, onSave, initialData = null }) {
                     id: initialData._id || initialData.id,
                     ...roleData
                 }
-                await import('../../services/api').then(m => m.default.updateRole(updatePayload))
+                await api.updateRole(updatePayload)
             } else {
                 // Create
-                await import('../../services/api').then(m => m.default.createRole(roleData))
+                await api.createRole(roleData)
             }
 
             onSave && onSave(roleData)

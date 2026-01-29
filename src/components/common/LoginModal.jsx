@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import './Modal.css'
-import ApiService from '../../services/api'
+import BaseModal from './BaseModal'
+import LoadingSpinner from './LoadingSpinner'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -25,70 +25,42 @@ function LoginModal({ onClose, onLogin, onRegisterClick, onForgotPasswordClick }
     setError('')
 
     try {
-      console.log('=== LOGIN ATTEMPT STARTED ===')
-      console.log('Attempting login with:', { email, password: '***' })
-
       const user = await auth.login(email, password)
-
-      console.log('=== LOGIN SUCCESSFUL ===')
-      console.log('User object:', user)
-      console.log('User role:', user?.role)
-      console.log('User email:', user?.email)
-      console.log('Is admin:', user?.isAdmin)
-
-      // Pass the login data to parent component (App.jsx will handle redirection)
       if (onLogin) onLogin(email, password, { user })
     } catch (error) {
-      console.error('=== LOGIN FAILED ===')
-      console.error('Error object:', error)
-      console.error('Error status:', error.status)
-      console.error('Error message:', error.message)
-      console.error('Error data:', error.data)
-      console.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
-
-      let errorMessage = error.message || t('login') + ' failed'
-
-      // Handle specific error cases
-      if (error.status === 400) {
-        // If server provides a specific message, use it. Otherwise fall back to generic.
-        errorMessage = error.data?.message || error.message || t('fillAllFields')
-        console.log('400 Error - Bad Request:', errorMessage)
-      } else if (error.status === 401) {
-        errorMessage = error.data?.message || 'Invalid email or password'
-        console.log('401 Error - Unauthorized:', errorMessage)
-      } else {
-        console.log('Other error status:', error.status, errorMessage)
-      }
-
-      setError(errorMessage)
+      console.error('Login failed:', error)
+      setError(error.message || t('loginFailed'))
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleInputChange = (field, value) => {
-    // Clear error when user starts typing
     if (error) setError('')
-
     if (field === 'email') setEmail(value)
     if (field === 'password') setPassword(value)
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>✕</button>
-        <h2 className="modal-title">{t('login')}</h2>
-
+    <BaseModal title={t('login')} onClose={onClose} maxWidth="450px">
+      <div className="animate-fade-in" style={{ padding: '0 8px' }}>
         {error && (
-          <div className="error-message" style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <div className="error-message" style={{
+            textAlign: 'center',
+            marginBottom: '20px',
+            color: '#ef4444',
+            fontSize: '0.9rem',
+            padding: '10px',
+            background: 'rgba(239, 68, 68, 0.1)',
+            borderRadius: '6px'
+          }}>
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>{t('email')}</label>
+          <div className="form-group" style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>{t('email')}</label>
             <input
               type="email"
               value={email}
@@ -100,9 +72,9 @@ function LoginModal({ onClose, onLogin, onRegisterClick, onForgotPasswordClick }
             />
           </div>
 
-          <div className="form-group">
-            <label>{t('password')}</label>
-            <div className="password-input-wrapper">
+          <div className="form-group" style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>{t('password')}</label>
+            <div className="password-input-wrapper" style={{ position: 'relative' }}>
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
@@ -111,12 +83,21 @@ function LoginModal({ onClose, onLogin, onRegisterClick, onForgotPasswordClick }
                 className={error ? 'error' : ''}
                 disabled={isLoading}
                 required
+                style={{ paddingRight: '45px' }}
               />
               <button
                 type="button"
-                className="password-toggle-btn"
+                className="btn-ghost"
                 onClick={() => setShowPassword(!showPassword)}
                 tabIndex="-1"
+                style={{
+                  position: 'absolute',
+                  right: '5px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  padding: '8px',
+                  height: 'auto'
+                }}
               >
                 {showPassword ? (
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -133,28 +114,39 @@ function LoginModal({ onClose, onLogin, onRegisterClick, onForgotPasswordClick }
             </div>
           </div>
 
-          <a href="#" className="forgot-password">{t('forgotPassword')}</a>
+          <div style={{ marginBottom: '25px', textAlign: 'right' }}>
+            <a href="#" className="forgot-password"
+              onClick={(e) => { e.preventDefault(); onForgotPasswordClick && onForgotPasswordClick() }}
+              style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', textDecoration: 'none' }}
+              onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
+              onMouseOut={(e) => e.target.style.textDecoration = 'none'}
+            >
+              {t('forgotPassword')}
+            </a>
+          </div>
 
-          <div className="button-group">
+          <div className="button-group" style={{ display: 'flex', gap: '12px' }}>
             <button
               type="submit"
               className="btn-primary"
               disabled={isLoading}
+              style={{ flex: 1 }}
             >
-              {isLoading ? t('loggingIn') : t('login')}
+              {isLoading ? <LoadingSpinner size="small" color="white" /> : t('login')}
             </button>
             <button
               type="button"
               className="btn-secondary"
               onClick={onRegisterClick}
               disabled={isLoading}
+              style={{ flex: 1 }}
             >
               {t('register')}
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </BaseModal>
   )
 }
 

@@ -22,7 +22,7 @@ function ViewReportsModal({ onClose }) {
                             textAlign: 'center'
                         }}>
                             <div style={{ fontSize: '32px', color: 'var(--primary-color)', marginBottom: '10px' }}>📊</div>
-                            <h3 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)' }}>User Growth</h3>
+                            <h3 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)' }}>{t('userGrowth')}</h3>
                             <div style={{ height: '100px', background: 'var(--bg-secondary)', borderRadius: '4px', display: 'flex', alignItems: 'end', justifyContent: 'center', paddingBottom: '10px', color: 'var(--text-secondary)' }}>
                                 [Chart Placeholder]
                             </div>
@@ -36,7 +36,7 @@ function ViewReportsModal({ onClose }) {
                             textAlign: 'center'
                         }}>
                             <div style={{ fontSize: '32px', color: '#4caf50', marginBottom: '10px' }}>🌍</div>
-                            <h3 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)' }}>Traffic</h3>
+                            <h3 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)' }}>{t('traffic')}</h3>
                             <div style={{ height: '100px', background: 'var(--bg-secondary)', borderRadius: '4px', display: 'flex', alignItems: 'end', justifyContent: 'center', paddingBottom: '10px', color: 'var(--text-secondary)' }}>
                                 [Map Placeholder]
                             </div>
@@ -44,9 +44,9 @@ function ViewReportsModal({ onClose }) {
                     </div>
 
                     <div style={{ marginTop: '20px', padding: '15px', background: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)' }}>Monthly Summary</h4>
+                        <h4 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)' }}>{t('monthlySummary')}</h4>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                            Total translations increased by <strong>15%</strong> this month. User engagement is at an all-time high.
+                            {t('monthlySummaryText')}
                         </p>
                     </div>
                 </div>

@@ -5,7 +5,7 @@ const ProtectedRoute = ({ requiredRole, redirectPath = '/login' }) => {
     const { isLoggedIn, user, loading } = useAuth();
 
     if (loading) {
-        return <div>Loading...</div>; // Or a proper loading spinner
+        return <div>Loading...</div>;
     }
 
     if (!isLoggedIn) {
@@ -13,7 +13,6 @@ const ProtectedRoute = ({ requiredRole, redirectPath = '/login' }) => {
     }
 
     if (requiredRole && user?.role !== requiredRole && !user?.isAdmin) {
-        // If role mismatch (and not admin overriding), redirect to home or unauthorized
         return <Navigate to="/" replace />;
     }
 

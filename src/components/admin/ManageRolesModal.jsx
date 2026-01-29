@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../../contexts/LanguageContext'
 import ApiService from '../../services/api'
+import LoadingSpinner from '../common/LoadingSpinner'
 import './AdminModals.css' // Premium UI styles
 import './AdminModals.css' // Premium UI styles
 // import './UserManagement.css' // Superseded by AdminModals.css
@@ -80,31 +81,29 @@ function ManageRolesModal({ onClose, onEditRole, onAddRole }) {
                     {/* Actions Toolbar */}
                     <div className="toolbar" style={{ justifyContent: 'flex-end' }}>
                         <button className="btn btn-primary" onClick={onAddRole}>
-                            <span>➕</span> {t('addNewRole') || 'Add New Role'}
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                            {t('addNewRole') || 'Add New Role'}
                         </button>
                     </div>
 
                     {error && <div className="error-message" style={{ color: 'red', marginBottom: '16px' }}>{error}</div>}
 
                     {loading ? (
-                        <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-secondary)' }}>
-                            <div className="spinner" style={{
-                                display: 'inline-block',
-                                width: '40px',
-                                height: '40px',
-                                border: '3px solid rgba(var(--primary-color-rgb), 0.1)',
-                                borderRadius: '50%',
-                                borderTopColor: 'var(--primary-color)',
-                                animation: 'spin 1s ease-in-out infinite',
-                                marginBottom: '16px'
-                            }}></div>
-                            <div>{t('loading') || 'Loading roles...'}</div>
+                        <div style={{ textAlign: 'center', padding: '60px' }}>
+                            <LoadingSpinner size="large" />
+                            <div style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>{t('loading') || 'Loading roles...'}</div>
                         </div>
                     ) : (
                         <div className="cards-grid">
                             {roles.length === 0 ? (
                                 <div className="empty-state" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px' }}>
-                                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🛡️</div>
+                                    <div style={{ marginBottom: '16px', color: 'var(--text-secondary)', opacity: 0.5 }}>
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                        </svg>
+                                    </div>
                                     <p>{t('noRolesFound') || 'No roles found.'}</p>
                                 </div>
                             ) : (
@@ -115,7 +114,9 @@ function ManageRolesModal({ onClose, onEditRole, onAddRole }) {
                                                 background: '#fff7ed',
                                                 color: '#c2410c'
                                             }}>
-                                                🛡️
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                                </svg>
                                             </div>
                                             <div className="user-info">
                                                 <h3>{role.name}</h3>
@@ -138,14 +139,18 @@ function ManageRolesModal({ onClose, onEditRole, onAddRole }) {
                                                     }}
                                                     title={t('edit') || 'Edit'}
                                                 >
-                                                    ✏️
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                                    </svg>
                                                 </button>
                                                 <button
                                                     className="icon-btn delete"
                                                     onClick={() => handleDelete(role.id, role.name)}
                                                     title={t('delete') || 'Delete'}
                                                 >
-                                                    🗑️
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" />
+                                                    </svg>
                                                 </button>
                                             </div>
                                         </div>

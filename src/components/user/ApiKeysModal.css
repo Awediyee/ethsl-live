@@ -1,0 +1,320 @@
+/* ApiKeysModal.css */
+.api-keys-body {
+  padding: 10px 0;
+}
+
+.api-keys-description {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.api-keys-table-container {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+
+.api-keys-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.api-keys-table th {
+  padding: 12px 16px;
+  font-weight: 600;
+  color: #8b8b8b;
+  /* Lighter color for headers */
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.85rem;
+  /* text-transform: uppercase; Removed as per image */
+  letter-spacing: 0.5px;
+}
+
+.api-keys-table td {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.api-keys-table tr:last-child td {
+  border-bottom: none;
+}
+
+.key-cell {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.copy-icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  font-size: 1rem;
+  opacity: 0.5;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.api-keys-table tr:hover .copy-icon-btn {
+  opacity: 1;
+}
+
+.copy-icon-btn:hover {
+  color: var(--primary-color);
+}
+
+.actions-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.action-icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  font-size: 1.1rem;
+  transition: color 0.2s, transform 0.1s;
+}
+
+.action-icon-btn:hover {
+  color: var(--primary-color);
+}
+
+.action-icon-btn.delete:hover {
+  color: #ff4d4f;
+}
+
+.create-api-key-btn {
+  background: #ffffff;
+  /* White background as per image in dark mode */
+  color: #000000;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  margin-top: 10px;
+}
+
+/* Specific button style for when in light mode if needed */
+[data-theme="light"] .create-api-key-btn {
+  background: #000000;
+  color: #ffffff;
+}
+
+.create-api-key-btn:hover {
+  filter: brightness(1.1);
+}
+
+.no-data {
+  text-align: center;
+  padding: 40px !important;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Centralized Action Views (Create, Edit, Delete) */
+.key-action-view {
+  padding: 32px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 12px var(--shadow-color);
+  animation: slideUp 0.3s ease;
+}
+
+.key-action-view.delete-confirm {
+  border-color: rgba(255, 77, 79, 0.3);
+}
+
+.view-subtitle {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 1.1rem;
+  color: var(--primary-color);
+}
+
+.view-subtitle.warning {
+  color: #ff4d4f;
+}
+
+.view-desc {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.action-form .form-group {
+  margin-bottom: 20px;
+}
+
+.action-form label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.action-form input {
+  width: 100%;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.action-form input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cancel-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancel-btn:hover {
+  background-color: var(--shadow-color);
+}
+
+.submit-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.submit-btn.danger {
+  background: #ff4d4f;
+}
+
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Key Created View Box */
+.key-display-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.secret-key {
+  font-family: 'JetBrains Mono', monospace;
+  word-break: break-all;
+  color: #4ade80;
+  font-size: 1rem;
+}
+
+.copy-btn-large {
+  background: var(--shadow-color);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.copy-btn-large:hover {
+  background-color: var(--border-color);
+}
+
+.done-btn {
+  width: 100%;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toast-notification {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary-color);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  animation: fadeInOut 2s ease forwards;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+
+  15% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  85% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+}

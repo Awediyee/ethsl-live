@@ -5,10 +5,10 @@ function ActivityLogsModal({ onClose }) {
     const { t } = useLanguage()
 
     const logs = [
-        { id: 1, action: 'User Login', user: 'abebe@example.com', time: '2 mins ago', icon: '🔑' },
-        { id: 2, action: 'New Translation', user: 'guest_user', time: '5 mins ago', icon: '🔤' },
-        { id: 3, action: 'System Backup', user: 'System', time: '1 hour ago', icon: '💾' },
-        { id: 4, action: 'Failed Login Attempt', user: 'unknown', time: '2 hours ago', icon: '⚠️' },
+        { id: 1, action: t('actionLogin'), user: 'abebe@example.com', time: '2 mins ago', icon: '🔑' },
+        { id: 2, action: t('actionTranslation'), user: 'guest_user', time: '5 mins ago', icon: '🔤' },
+        { id: 3, action: t('actionBackup'), user: 'System', time: '1 hour ago', icon: '💾' },
+        { id: 4, action: t('actionFailedLogin'), user: 'unknown', time: '2 hours ago', icon: '⚠️' },
     ]
 
     return (
@@ -36,7 +36,7 @@ function ActivityLogsModal({ onClose }) {
                                         <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{log.time}</span>
                                     </div>
                                     <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                                        User: <span style={{ color: 'var(--primary-color)' }}>{log.user}</span>
+                                        {t('userLabel')} <span style={{ color: 'var(--primary-color)' }}>{log.user}</span>
                                     </div>
                                 </div>
                             </div>
