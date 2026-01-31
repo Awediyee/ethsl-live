@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useToast } from '../../contexts/ToastContext'
 import ApiService from '../../services/api'
 import LoadingSpinner from '../common/LoadingSpinner'
+import ConfirmationModal from '../common/ConfirmationModal'
 import './AdminConfigurationModal.css'
 import './AdminModals.css' // Premium UI styles
 // import './UserManagement.css' // Superseded // Import modern styles
 
 function ManageUsersModal({ onClose }) {
     const { t } = useLanguage()
+    const { showToast } = useToast()
     const [searchTerm, setSearchTerm] = useState('')
+    const [confirmDeleteUser, setConfirmDeleteUser] = useState(null)
 
     // State for users (Mock data for now)
     const [users, setUsers] = useState([])
@@ -18,26 +22,99 @@ function ManageUsersModal({ onClose }) {
     const [roleId, setRoleId] = useState(null)
     const [error, setError] = useState(null)
     const LIMIT = 10
+    // Add User Flow States
+    const [isAddingUser, setIsAddingUser] = useState(false)
+    const [addUserStep, setAddUserStep] = useState(1)
+    const [addUserForm, setAddUserForm] = useState({
+        email: '',
+        password: '',
+        role_id: '',
+        otp: ''
+    })
+    const [availableRoles, setAvailableRoles] = useState([])
+    const [addingLoading, setAddingLoading] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
 
-    // Fetch Role ID for 'user'
+    // Fetch Role ID for 'user' and available roles
     useEffect(() => {
-        const fetchRole = async () => {
+        const fetchInitialData = async () => {
             try {
                 const response = await ApiService.getRoles()
                 const roles = Array.isArray(response) ? response : (response.data || [])
+                setAvailableRoles(roles)
+
                 const userRole = roles.find(r => r.name.toLowerCase() === 'user')
                 if (userRole) {
                     setRoleId(userRole.id || userRole._id)
                 } else {
-                    setError('User role not found')
+                    setError(t('userRoleNotFound'))
                 }
             } catch (err) {
                 console.error('Failed to fetch roles:', err)
-                setError('Failed to initialize: could not load roles')
+                setError(t('failedToLoadRoles'))
             }
         }
-        fetchRole()
+        fetchInitialData()
     }, [])
+
+    const refreshUsers = async () => {
+        if (!roleId) return
+        setLoading(true)
+        try {
+            const response = await ApiService.getAccounts(LIMIT, roleId, 1)
+            const rawData = response.data || {}
+            const mappedUsers = mapUserData(rawData)
+            const finalUsers = await fetchUserSubscriptions(mappedUsers)
+            setUsers(finalUsers)
+            setPage(1)
+            setHasMore(mappedUsers.length === LIMIT)
+        } catch (err) {
+            console.error('Failed to refresh users:', err)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleSendOtp = async () => {
+        if (!addUserForm.email || !addUserForm.password) {
+            showToast(t('fillAllFields'), 'error')
+            return
+        }
+        if (addUserForm.password.length < 6) {
+            showToast(t('passwordLength'), 'error')
+            return
+        }
+        setAddingLoading(true)
+        try {
+            await ApiService.register(addUserForm.email, addUserForm.password)
+            showToast(t('otpSent'), 'success')
+            setAddUserStep(2)
+        } catch (err) {
+            showToast(err.message || t('toastError'), 'error')
+        } finally {
+            setAddingLoading(false)
+        }
+    }
+
+    const handleVerifyAndCreate = async () => {
+        if (!addUserForm.otp || !addUserForm.role_id) {
+            showToast(t('fillAllFields'), 'error')
+            return
+        }
+        setAddingLoading(true)
+        try {
+            await ApiService.verifyAccount(addUserForm)
+            showToast(t('userCreated'), 'success')
+            setIsAddingUser(false)
+            setAddUserForm({ email: '', password: '', role_id: '', otp: '' })
+            setAddUserStep(1)
+            refreshUsers()
+        } catch (err) {
+            showToast(err.message || t('failedToCreateUser'), 'error')
+        } finally {
+            setAddingLoading(false)
+        }
+    }
 
     // Helper to map API data to UI structure
     const mapUserData = (apiData) => {
@@ -49,14 +126,44 @@ function ManageUsersModal({ onClose }) {
         return list.map(item => ({
             id: item.account?.account_id || item.accountInfo_id || Math.random(),
             accountId: item.account?.account_id, // Explicitly store account ID for API calls
-            name: `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Unknown User',
+            name: `${item.firstName || ''} ${item.lastName || ''}`.trim() || t('unknownUser'),
             email: item.account?.email || 'N/A', // Correctly access nested email
             role: 'User', // Since we are in Manage Users and filtering by User role, display 'User'
             roleId: item.account?.role, // Keep the numeric ID if needed
             status: item.account?.status || 'active',
-            subscriptionName: item.subscription?.packageName || item.account?.subscription?.packageName || 'Free',
+            subscriptionName:
+                item.subscription?.package?.package_name ||
+                item.subscription?.package_name ||
+                item.subscription?.packageName ||
+                item.account?.subscription?.package?.package_name ||
+                item.account?.subscription?.package_name ||
+                item.account?.subscription?.packageName ||
+                'Free',
             ...item
         }))
+    }
+
+    // Helper to fetch subscriptions for a list of users
+    const fetchUserSubscriptions = async (mappedUsers) => {
+        try {
+            const usersWithSubs = await Promise.all(mappedUsers.map(async (user) => {
+                if (!user.accountId) return user;
+                try {
+                    const subResponse = await ApiService.getAccountSubscription(user.accountId);
+                    // Standardize finding the name from nested data
+                    const pkg = subResponse?.data?.package || subResponse?.package;
+                    const subName = pkg?.package_name || pkg?.packageName || 'Free';
+                    return { ...user, subscriptionName: subName };
+                } catch (subErr) {
+                    console.warn(`Could not fetch sub for ${user.email}:`, subErr);
+                    return user; // Fallback to existing (likely 'Free')
+                }
+            }));
+            return usersWithSubs;
+        } catch (error) {
+            console.error('Error fetching batch subscriptions:', error);
+            return mappedUsers;
+        }
     }
 
     // Fetch Users when roleId is set
@@ -71,15 +178,18 @@ function ManageUsersModal({ onClose }) {
                 const response = await ApiService.getAccounts(LIMIT, roleId, 1)
                 // New structure: response.data has pagination metadata, response.data.data has the list
                 const rawData = response.data || {}
-                const newUsers = mapUserData(rawData)
+                const mappedUsers = mapUserData(rawData)
 
-                setUsers(newUsers)
+                // Fetch actual subscriptions for each user in parallel
+                const finalUsers = await fetchUserSubscriptions(mappedUsers)
+
+                setUsers(finalUsers)
                 setPage(1)
-                setHasMore(newUsers.length === LIMIT) // Assuming LIMIT determines if more exist
-                console.log('Fetched users:', newUsers)
+                setHasMore(mappedUsers.length === LIMIT)
+                console.log('Fetched users with subs:', finalUsers)
             } catch (err) {
                 console.error('Failed to fetch users:', err)
-                setError('Failed to load users')
+                setError(t('failedToLoadUsers'))
             } finally {
                 setLoading(false)
             }
@@ -96,19 +206,22 @@ function ManageUsersModal({ onClose }) {
             const nextPage = page + 1
             const response = await ApiService.getAccounts(LIMIT, roleId, nextPage)
             const rawData = response.data || {}
-            const newUsers = mapUserData(rawData)
+            const mappedUsers = mapUserData(rawData)
 
-            if (newUsers.length === 0) {
+            if (mappedUsers.length === 0) {
                 setHasMore(false)
             } else {
+                // Fetch actual subscriptions for each user in parallel
+                const finalUsers = await fetchUserSubscriptions(mappedUsers)
+
                 setUsers(prev => {
                     // Filter duplicates just in case
                     const existingIds = new Set(prev.map(u => u.id))
-                    const uniqueNew = newUsers.filter(u => !existingIds.has(u.id))
+                    const uniqueNew = finalUsers.filter(u => !existingIds.has(u.id))
                     return [...prev, ...uniqueNew]
                 })
                 setPage(nextPage)
-                setHasMore(newUsers.length === LIMIT)
+                setHasMore(mappedUsers.length === LIMIT)
             }
         } catch (err) {
             console.error('Failed to load more users:', err)
@@ -120,7 +233,7 @@ function ManageUsersModal({ onClose }) {
     const handleToggleStatus = async (user) => {
         const accId = user.accountId || user.id; // Try explicit accountId first
         if (!accId || typeof accId !== 'string') {
-            alert('Error: Invalid Account ID');
+            showToast(t('invalidAccountId'), 'error');
             return;
         }
 
@@ -136,7 +249,7 @@ function ManageUsersModal({ onClose }) {
         } catch (err) {
             console.error('Failed to toggle status:', err)
             // Show meaningful error
-            alert(`Failed to toggle status: ${err.message || 'Unknown error'}`)
+            showToast(`${t('failedToToggleStatus')}: ${err.message || 'Unknown error'}`, 'error')
         }
     }
 
@@ -147,9 +260,15 @@ function ManageUsersModal({ onClose }) {
         }
     }
 
-    const handleDelete = (userId) => {
-        if (window.confirm(t('confirmDelete') || 'Are you sure you want to delete this user?')) {
-            setUsers(users.filter(user => user.id !== userId))
+    const handleDelete = (user) => {
+        setConfirmDeleteUser(user)
+    }
+
+    const performDelete = () => {
+        if (confirmDeleteUser) {
+            setUsers(users.filter(u => u.id !== confirmDeleteUser.id))
+            setConfirmDeleteUser(null)
+            showToast(t('toastSuccess'), 'success') // Or a more specific one
         }
     }
 
@@ -177,7 +296,7 @@ function ManageUsersModal({ onClose }) {
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content premium-modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2>{t('manageUsers') || 'Manage Users'}</h2>
+                    <h2>{t('manageUsers')}</h2>
                     <button className="close-button" onClick={onClose}>&times;</button>
                 </div>
 
@@ -193,21 +312,158 @@ function ManageUsersModal({ onClose }) {
                             <input
                                 type="text"
                                 className="search-input"
-                                placeholder={t('searchUsers') || 'Search users...'}
+                                placeholder={t('searchUsers')}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        {/* Filter Buttons could go here */}
+                        <button className="btn btn-primary" onClick={() => setIsAddingUser(!isAddingUser)}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                            {t('addUser')}
+                        </button>
                     </div>
 
                     {error && <div className="error-message" style={{ color: 'red' }}>{error}</div>}
+
+                    {/* Add User Form */}
+                    {isAddingUser && (
+                        <div className="add-user-container">
+                            <div className="add-user-header">
+                                <h3>{t('addUser')}</h3>
+                                <button className="close-button" onClick={() => setIsAddingUser(false)}>&times;</button>
+                            </div>
+
+                            <div className="add-user-steps">
+                                <div className={`step-indicator ${addUserStep >= 1 ? 'active' : ''}`}></div>
+                                <div className={`step-indicator ${addUserStep >= 2 ? 'active' : ''}`}></div>
+                                <div className={`step-indicator ${addUserStep >= 3 ? 'active' : ''}`}></div>
+                            </div>
+
+                            {addUserStep === 1 && (
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>{t('emailLabel')}</label>
+                                        <input
+                                            type="email"
+                                            className="form-control"
+                                            placeholder="user@example.com"
+                                            value={addUserForm.email}
+                                            onChange={(e) => setAddUserForm({ ...addUserForm, email: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>{t('password')}</label>
+                                        <div className="password-input-wrapper">
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                className="form-control"
+                                                placeholder="••••••••"
+                                                value={addUserForm.password}
+                                                onChange={(e) => setAddUserForm({ ...addUserForm, password: e.target.value })}
+                                            />
+                                            <button
+                                                className="password-toggle"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                type="button"
+                                                tabIndex="-1"
+                                            >
+                                                {showPassword ? (
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                                        <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                                                    </svg>
+                                                ) : (
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                                    </svg>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="form-actions" style={{ alignSelf: 'flex-end' }}>
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={handleSendOtp}
+                                            disabled={addingLoading}
+                                        >
+                                            {addingLoading ? t('loading') : t('sendOtp')}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {addUserStep === 2 && (
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>{t('enterOtp')}</label>
+                                        <div className="otp-input-wrapper">
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                className="form-control otp-control"
+                                                placeholder="••••••"
+                                                maxLength="6"
+                                                value={addUserForm.otp}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/\D/g, '')
+                                                    setAddUserForm({ ...addUserForm, otp: val })
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="form-actions" style={{ alignSelf: 'flex-end' }}>
+                                        <button className="btn btn-secondary" onClick={() => setAddUserStep(1)}>{t('back')}</button>
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={() => setAddUserStep(3)}
+                                            disabled={addUserForm.otp.length !== 6}
+                                        >
+                                            {t('next')}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {addUserStep === 3 && (
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>{t('selectRole')}</label>
+                                        <select
+                                            className="form-control"
+                                            value={addUserForm.role_id}
+                                            onChange={(e) => setAddUserForm({ ...addUserForm, role_id: e.target.value })}
+                                        >
+                                            <option value="">{t('selectRole')}</option>
+                                            {availableRoles.map(role => (
+                                                <option key={role.id || role._id} value={role.id || role._id}>
+                                                    {role.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-actions" style={{ alignSelf: 'flex-end' }}>
+                                        <button className="btn btn-secondary" onClick={() => setAddUserStep(2)}>{t('back')}</button>
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={handleVerifyAndCreate}
+                                            disabled={addingLoading || !addUserForm.role_id}
+                                        >
+                                            {addingLoading ? t('loading') : t('createUser')}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Loading Initial */}
                     {loading && users.length === 0 && (
                         <div style={{ textAlign: 'center', padding: '60px' }}>
                             <LoadingSpinner size="large" />
-                            <div style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>{t('loading') || 'Loading users...'}</div>
+                            <div style={{ marginTop: '16px', color: 'var(--text-secondary)' }}>{t('loading')}</div>
                         </div>
                     )}
 
@@ -220,7 +476,7 @@ function ManageUsersModal({ onClose }) {
                                         <path d="M17 21v-2a4 4 0 0 0-3-3.87" /><path d="M9 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><circle cx="17" cy="7" r="4" />
                                     </svg>
                                 </div>
-                                <p>{t('noUsersFound') || 'No users found matching your search.'}</p>
+                                <p>{t('noUsersFound')}</p>
                             </div>
                         ) : (
                             displayedUsers.map((user, index) => (
@@ -241,13 +497,13 @@ function ManageUsersModal({ onClose }) {
                                     <div className="user-card-actions">
                                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                                             <span className={`badge ${user.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>
-                                                {user.status || 'Active'}
+                                                {user.status === 'active' ? t('activeLabel') : t('inactiveLabel')}
                                             </span>
                                             <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>
-                                                {user.subscriptionName || 'Free'}
+                                                {user.subscriptionName === 'Free' ? t('freeLabel') : user.subscriptionName}
                                             </span>
                                             <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: '8px' }}>
-                                                USER
+                                                {t('userLabel')}
                                             </span>
                                         </div>
 
@@ -255,7 +511,7 @@ function ManageUsersModal({ onClose }) {
                                             <button
                                                 onClick={() => handleToggleStatus(user)}
                                                 className="icon-btn"
-                                                title={user.status === 'active' ? (t('deactivate') || 'Deactivate') : (t('activate') || 'Activate')}
+                                                title={user.status === 'active' ? t('deactivate') : t('activate')}
                                                 style={{ opacity: user.status === 'active' ? 1 : 0.6 }}
                                             >
                                                 {user.status === 'active' ? (
@@ -271,7 +527,8 @@ function ManageUsersModal({ onClose }) {
 
                                             <button
                                                 className="icon-btn delete"
-                                                title={t('delete') || 'Delete'}
+                                                onClick={() => handleDelete(user)}
+                                                title={t('delete')}
                                             >
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                     <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" />
@@ -286,9 +543,20 @@ function ManageUsersModal({ onClose }) {
                 </div>
 
                 <div className="modal-footer">
-                    <button className="cancel-btn" onClick={onClose}>{t('close') || 'Close'}</button>
+                    <button className="cancel-btn" onClick={onClose}>{t('close')}</button>
                 </div>
             </div>
+
+            {confirmDeleteUser && (
+                <ConfirmationModal
+                    title={t('deleteUser')}
+                    message={`${t('confirmDelete')} (${confirmDeleteUser.name})`}
+                    onConfirm={performDelete}
+                    onCancel={() => setConfirmDeleteUser(null)}
+                    confirmText={t('delete')}
+                    type="danger"
+                />
+            )}
         </div>
     )
 }

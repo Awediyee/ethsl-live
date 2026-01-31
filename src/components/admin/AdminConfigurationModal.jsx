@@ -20,14 +20,13 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
         disconnect: handleDisconnect
     } = useWebSocket();
 
-    // Force reload debug
     useState(() => {
-        console.log("AdminConfigurationModal Loaded - Version 3 (Simple Button + Translations)")
+        // console.log("AdminConfigurationModal Loaded")
     }, [])
 
     const [activeTab, setActiveTab] = useState('general')
     const [config, setConfig] = useState({
-        siteName: 'Amharic Sign Language Translate',
+        siteName: t('appTitle'),
         websocketUrl: localStorage.getItem('websocket_url') || 'ws://localhost:8000',
         maintenanceMode: false,
         allowRegistration: true,
@@ -68,7 +67,7 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content admin-config-modal" onClick={e => e.stopPropagation()}>
                 <div className="admin-modal-header">
-                    <h2>{t('systemSettings') || 'System Configuration'}</h2>
+                    <h2>{t('systemSettings')}</h2>
                     <button className="admin-close-button" onClick={onClose}>&times;</button>
                 </div>
 
@@ -81,7 +80,7 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
                             </svg>
-                            <span className="tab-btn-text">{t('general') || 'General'}</span>
+                            <span className="tab-btn-text">{t('general')}</span>
                         </button>
                         <button
                             className={`tab-btn ${activeTab === 'features' ? 'active' : ''}`}
@@ -90,7 +89,7 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                             </svg>
-                            <span className="tab-btn-text">{t('features') || 'Features'}</span>
+                            <span className="tab-btn-text">{t('features')}</span>
                         </button>
                         <button
                             className={`tab-btn ${activeTab === 'security' ? 'active' : ''}`}
@@ -99,7 +98,7 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                             </svg>
-                            <span className="tab-btn-text">{t('security') || 'Security'}</span>
+                            <span className="tab-btn-text">{t('security')}</span>
                         </button>
                         <button
                             className={`tab-btn ${activeTab === 'preferences' ? 'active' : ''}`}
@@ -116,7 +115,7 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
                                 <line x1="9" y1="8" x2="15" y2="8" />
                                 <line x1="17" y1="16" x2="23" y2="16" />
                             </svg>
-                            <span className="tab-btn-text">{t('preferences') || 'Preferences'}</span>
+                            <span className="tab-btn-text">{t('preferences')}</span>
                         </button>
                     </div>
 
@@ -124,7 +123,7 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
                         {activeTab === 'general' && (
                             <div className="config-section">
                                 <div className="form-group">
-                                    <label>{t('siteName') || 'Site Name'}</label>
+                                    <label>{t('siteName')}</label>
                                     <input
                                         type="text"
                                         name="siteName"
@@ -190,7 +189,7 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
                             <div className="config-section">
                                 <div className="toggle-group">
                                     <label className="toggle-label">
-                                        <span>{t('maintenanceMode') || 'Maintenance Mode'}</span>
+                                        <span>{t('maintenanceMode')}</span>
                                         <input
                                             type="checkbox"
                                             name="maintenanceMode"
@@ -199,12 +198,12 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
                                         />
                                         <span className="toggle-switch"></span>
                                     </label>
-                                    <p className="toggle-desc">{t('maintenanceModeDesc') || 'Put the site in maintenance mode. Only admins can access.'}</p>
+                                    <p className="toggle-desc">{t('maintenanceModeDesc')}</p>
                                 </div>
 
                                 <div className="toggle-group">
                                     <label className="toggle-label">
-                                        <span>{t('allowRegistration') || 'Allow User Registration'}</span>
+                                        <span>{t('allowRegistration')}</span>
                                         <input
                                             type="checkbox"
                                             name="allowRegistration"
@@ -221,7 +220,7 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
                             <div className="config-section">
                                 <div className="toggle-group">
                                     <label className="toggle-label">
-                                        <span>{t('emailNotifications') || 'Email Notifications'}</span>
+                                        <span>{t('emailNotifications')}</span>
                                         <input
                                             type="checkbox"
                                             name="emailNotifications"
@@ -233,7 +232,7 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
                                 </div>
                                 <div className="toggle-group">
                                     <label className="toggle-label">
-                                        <span>{t('autoBackup') || 'Auto Backup System'}</span>
+                                        <span>{t('autoBackup')}</span>
                                         <input
                                             type="checkbox"
                                             name="autoBackup"
@@ -291,11 +290,11 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
                         </svg>
-                        {t('signOut') || 'Sign Out'}
+                        {t('signOut')}
                     </button>
                     <div style={{ display: 'flex', gap: '12px' }}>
-                        <button className="cancel-btn" onClick={onClose}>{t('close') || 'Close'}</button>
-                        <button className="save-btn" onClick={handleSave}>{t('save') || 'Save Changes'}</button>
+                        <button className="cancel-btn" onClick={onClose}>{t('close')}</button>
+                        <button className="save-btn" onClick={handleSave}>{t('save')}</button>
                     </div>
                 </div>
             </div>

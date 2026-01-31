@@ -10,7 +10,7 @@ import './SettingsModal.css'
 
 function SettingsModal({ onClose, userData, activeTab: propsActiveTab, onChangePassword }) {
     const { t } = useLanguage();
-    const { updateUser } = useAuth();
+    const { updateUser, logout } = useAuth();
     const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState(propsActiveTab || 'Profile');
     const [firstName, setFirstName] = useState(userData?.firstName || '')
@@ -161,16 +161,34 @@ function SettingsModal({ onClose, userData, activeTab: propsActiveTab, onChangeP
                             <hr className="settings-divider" />
 
                             <div className="settings-security-section">
-                                <h4>{t('security') || 'Security'}</h4>
-                                <button
-                                    className="btn-secondary"
-                                    onClick={() => {
-                                        onClose();
-                                        onChangePassword && onChangePassword();
-                                    }}
-                                >
-                                    {t('changePassword')}
-                                </button>
+                                <h4>{t('accountActions')}</h4>
+                                <div className="settings-action-row">
+                                    <button
+                                        className="btn-secondary"
+                                        onClick={() => {
+                                            onClose();
+                                            onChangePassword && onChangePassword();
+                                        }}
+                                    >
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                        </svg>
+                                        {t('changePassword')}
+                                    </button>
+
+                                    <button
+                                        className="btn-danger-outline"
+                                        onClick={() => {
+                                            logout();
+                                            onClose();
+                                        }}
+                                    >
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+                                        </svg>
+                                        {t('signOut')}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}

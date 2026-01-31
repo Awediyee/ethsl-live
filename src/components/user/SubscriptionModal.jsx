@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useToast } from '../../contexts/ToastContext'
 import BaseModal from '../common/BaseModal'
 import ApiService from '../../services/api'
 import LoadingSpinner from '../common/LoadingSpinner'
+import ConfirmationModal from '../common/ConfirmationModal'
+import PaymentStatusModal from './PaymentStatusModal'
 import './SubscriptionModal.css'
 
 function SubscriptionModal({ onClose }) {
@@ -13,71 +15,118 @@ function SubscriptionModal({ onClose }) {
     const [loading, setLoading] = useState(true)
     const [currentSubscription, setCurrentSubscription] = useState(null)
     const [isUpgrading, setIsUpgrading] = useState(null) // Stores packageId being upgraded
+    const [isCancelling, setIsCancelling] = useState(false)
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+    const [txRef, setTxRef] = useState(() => {
+        const params = new URLSearchParams(window.location.search)
+        return params.get('transactionid') || params.get('tx_ref')
+    })
+    const isInitialized = useRef(false)
+
+    const loadSubscriptionData = useCallback(async () => {
+        try {
+            setLoading(true)
+            // 1. Fetch current status
+            let statusData = null
+            try {
+                const response = await ApiService.getUserCurrentSubscription()
+                if (response?.data?.package) {
+                    statusData = {
+                        ...response.data,
+                        packageName: response.data.package.package_name || response.data.package.packageName,
+                        isFree: false
+                    }
+                } else {
+                    statusData = response
+                }
+            } catch (statusError) {
+                const isNotFound = statusError.status === 404 ||
+                    statusError.message?.includes('No active subscription found') ||
+                    statusError.message?.includes('This resource does not exist')
+
+                if (isNotFound) {
+                    console.log('ℹ️ Treating 404/Not Found as Free tier status')
+                    statusData = { packageName: 'Free', isFree: true }
+                } else {
+                    throw statusError
+                }
+            }
+            setCurrentSubscription(statusData)
+
+            // 2. Fetch available packages
+            const packagesResponse = await ApiService.getSubscriptionPackages()
+            const data = packagesResponse.data || packagesResponse || []
+            setPackages(Array.isArray(data) ? data : [])
+
+        } catch (error) {
+            console.error('❌ Error loading subscription data:', error)
+            const apiErrorMsg = error.data?.message || error.message || t('packageError')
+            showToast(apiErrorMsg, 'error')
+        } finally {
+            setLoading(false)
+        }
+    }, [t, showToast])
 
     useEffect(() => {
-        const loadSubscriptionData = async () => {
-            try {
-                // 1. Fetch current status
-                let statusData = null
-                try {
-                    statusData = await ApiService.getUserCurrentSubscription()
-                } catch (statusError) {
-                    // Check for 404 status or specific "No active subscription found" strings
-                    const isNotFound = statusError.status === 404 ||
-                        statusError.message?.includes('No active subscription found') ||
-                        statusError.message?.includes('This resource does not exist')
-
-                    if (isNotFound) {
-                        console.log('ℹ️ Treating 404/Not Found as Free tier status')
-                        statusData = { packageName: 'Free', isFree: true }
-                    } else {
-                        throw statusError
-                    }
-                }
-                setCurrentSubscription(statusData)
-
-                // 2. Fetch available packages from the main packages endpoint
-                const packagesResponse = await ApiService.getSubscriptionPackages()
-                const data = packagesResponse.data || packagesResponse || []
-                setPackages(Array.isArray(data) ? data : [])
-
-            } catch (error) {
-                console.error('❌ Error loading subscription data:', error)
-                const apiErrorMsg = error.data?.message || error.message || t('packageError')
-                showToast(apiErrorMsg, 'error')
-            } finally {
-                setLoading(false)
-            }
-        }
+        if (isInitialized.current) return
+        isInitialized.current = true
         loadSubscriptionData()
-    }, [showToast, t])
+
+        // Check if there's a pending transaction from a previous payment
+        const pendingTxId = localStorage.getItem('pendingTransactionId')
+        if (pendingTxId) {
+            console.log('🔍 Found pending transaction ID from localStorage:', pendingTxId)
+            localStorage.removeItem('pendingTransactionId')
+            setTxRef(pendingTxId)
+        }
+    }, [loadSubscriptionData])
+
+    const handleClearTxRef = () => {
+        setTxRef(null)
+        const newUrl = window.location.pathname + window.location.search
+            .replace(/[?&]tx_ref=[^&]+/, '')
+            .replace(/[?&]transactionid=[^&]+/, '')
+            .replace(/^&/, '?')
+        window.history.replaceState({}, '', newUrl)
+    }
 
     const isCurrentPlan = (pkg) => {
         if (!currentSubscription) return false
-        return (pkg.packageName === currentSubscription.packageName) || (pkg.package_name === currentSubscription.packageName)
+        const currentName = (currentSubscription.packageName || currentSubscription.package_name || '').toLowerCase()
+        const pkgName = (pkg.packageName || pkg.package_name || '').toLowerCase()
+        return currentName !== '' && pkgName !== '' && currentName === pkgName
     }
 
     const handleUpgrade = async (pkgId) => {
         setIsUpgrading(pkgId)
         try {
-            // Updated payload structure as per user requirement
             const payload = {
                 packageId: pkgId,
                 numberOfDays: 30,
-                // returnURL is likely required as indicated by the validation error 'returnURL' object crash
-                returnURL: window.location.origin + '/me'
+                returnURL: window.location.origin
             }
 
             const response = await ApiService.initializeSubscription(payload)
+            console.log('🔍 Upgrade response:', response)
 
-            // Log full response for debugging
-            console.log('Upgrade response:', response)
-
-            // Handling the specific nested response structure: data.data.checkout_url
-            const checkoutUrl = response.data?.data?.checkout_url || response.checkoutURL
+            const checkoutUrl = response.data?.data?.checkout_url || response.data?.checkout_url || response.checkoutURL
+            const transactionId =
+                response.data?.transactionId ||
+                response.transactionId ||
+                response.data?.data?.transactionId ||
+                response.data?.id ||
+                response.data?.tx_ref
 
             if (checkoutUrl) {
-                window.location.href = checkoutUrl
+                console.log('🌐 Redirecting to checkout URL:', checkoutUrl)
+                if (transactionId) {
+                    localStorage.setItem('pendingTransactionId', transactionId)
+                }
+                window.location.href = checkoutUrl;
+                return;
+            } else if (transactionId) {
+                console.log('💎 Starting immediate verification:', transactionId)
+                setTxRef(transactionId)
             } else if (response.status === 'success' || response.success) {
                 showToast(t('packageUpdated') || 'Subscription started successfully', 'success')
                 setTimeout(onClose, 1500)
@@ -86,18 +135,27 @@ function SubscriptionModal({ onClose }) {
             }
         } catch (error) {
             console.error('Upgrade error:', error)
-
-            // Extract a readable message, ensuring it's not an object (to avoid React child crash)
             let errorMsg = error.data?.message || error.message || t('packageError')
-
-            if (typeof errorMsg === 'object') {
-                // If it's a validation object like { returnURL: '...' }, stringify its first value or the whole thing
-                errorMsg = JSON.stringify(errorMsg)
-            }
-
+            if (typeof errorMsg === 'object') errorMsg = JSON.stringify(errorMsg)
             showToast(errorMsg, 'error')
         } finally {
             setIsUpgrading(null)
+        }
+    }
+
+    const handleCancelSubscription = async () => {
+        setShowCancelConfirm(false)
+        setIsCancelling(true)
+        try {
+            await ApiService.cancelSubscription()
+            showToast(t('subscriptionCancelled') || 'Subscription cancelled successfully', 'success')
+            await loadSubscriptionData()
+        } catch (error) {
+            console.error('Cancellation error:', error)
+            const errorMsg = error.data?.message || error.message || t('packageError')
+            showToast(errorMsg, 'error')
+        } finally {
+            setIsCancelling(false)
         }
     }
 
@@ -111,11 +169,11 @@ function SubscriptionModal({ onClose }) {
                     </div>
                 ) : (
                     <div className="subscription-grid">
-                        {/* Always show Free Plan as the default tier */}
+                        {/* Always show Free Plan */}
                         {(() => {
-                            // If no subscription found (null/404) or name is "Free", it's the current plan
                             const isFreeActive = !currentSubscription ||
-                                currentSubscription.packageName === 'Free' ||
+                                (currentSubscription.packageName || '').toLowerCase() === 'free' ||
+                                (currentSubscription.package_name || '').toLowerCase() === 'free' ||
                                 currentSubscription.isFree
 
                             return (
@@ -129,16 +187,23 @@ function SubscriptionModal({ onClose }) {
                                         </div>
                                     </div>
                                     <p className="package-desc">{t('freeDesc') || 'Get started with basic Amharic sign language translation features.'}</p>
-                                    <ul className="features-list">
-                                        <li className="feature-tick">
-                                            <span className="tick-icon">✓</span>
-                                            {t('basicTranslation') || 'Basic Translation'}
-                                        </li>
-                                        <li className="feature-tick">
-                                            <span className="tick-icon">✕</span>
-                                            <span style={{ opacity: 0.6 }}>{t('noApiAccess') || 'No API Access'}</span>
-                                        </li>
-                                    </ul>
+                                    <div className="features-container">
+                                        <div className="features-label">{t('features') || 'Included Features'}</div>
+                                        <ul className="features-list">
+                                            <li className="feature-tick">
+                                                <div className="tick-icon">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                </div>
+                                                {t('basicTranslation') || 'Basic Translation'}
+                                            </li>
+                                            <li className="feature-tick disabled">
+                                                <div className="tick-icon close">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                                </div>
+                                                <span style={{ opacity: 0.6 }}>{t('noApiAccess') || 'No API Access'}</span>
+                                            </li>
+                                        </ul>
+                                    </div>
                                     <button className="upgrade-btn" disabled>
                                         {isFreeActive ? (t('currentPlan') || 'Current Plan') : (t('freeTier') || 'Free')}
                                     </button>
@@ -146,15 +211,14 @@ function SubscriptionModal({ onClose }) {
                             )
                         })()}
 
-                        {/* Available Packages from Server (Filtering out duplicates) */}
+                        {/* Available Packages */}
                         {packages && packages
                             .filter(pkg => {
                                 const name = (pkg.packageName || pkg.package_name || '').toLowerCase()
-                                return name !== 'free' && name !== 'base'
+                                return name !== 'free' && name !== 'base' && name !== 'free_plan'
                             })
                             .map((pkg, index) => {
                                 const isCurrent = isCurrentPlan(pkg)
-                                // We treat the first index in the filtered list as the "featured" plan if it's not the current one
                                 const isFeatured = index === 0 && !isCurrent
 
                                 return (
@@ -172,44 +236,73 @@ function SubscriptionModal({ onClose }) {
 
                                         <p className="package-desc">{pkg.description}</p>
 
-                                        <ul className="features-list">
-                                            <li className="feature-tick">
-                                                <span className="tick-icon">✓</span>
-                                                <strong>{pkg.numberOfSessions}</strong> {t('sessions') || 'Sessions'}
-                                            </li>
-                                            <li className="feature-tick">
-                                                <span className="tick-icon">✓</span>
-                                                <strong>{pkg.lengthOfSession}</strong> {t('minutesPerSession') || 'Min / Session'}
-                                            </li>
-                                            {pkg.historyAccess ? (
+                                        <div className="features-container">
+                                            <div className="features-label">{t('features') || 'Included Features'}</div>
+                                            <ul className="features-list">
                                                 <li className="feature-tick">
-                                                    <span className="tick-icon">✓</span>
-                                                    {t('historyAccess')}
+                                                    <div className="tick-icon">
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                    </div>
+                                                    <span><strong>{pkg.numberOfSessions}</strong> {t('sessions') || 'Sessions'}</span>
                                                 </li>
-                                            ) : null}
-                                            {pkg.apiAccess ? (
                                                 <li className="feature-tick">
-                                                    <span className="tick-icon">✓</span>
-                                                    {t('apiAccess')}
+                                                    <div className="tick-icon">
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                    </div>
+                                                    <span><strong>{pkg.lengthOfSession}</strong> {t('minutesPerSession') || 'Min / Session'}</span>
                                                 </li>
-                                            ) : null}
-                                        </ul>
+                                                {pkg.historyAccess && (
+                                                    <li className="feature-tick">
+                                                        <div className="tick-icon">
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                        </div>
+                                                        {t('historyAccess')}
+                                                    </li>
+                                                )}
+                                                {pkg.apiAccess && (
+                                                    <li className="feature-tick">
+                                                        <div className="tick-icon">
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                        </div>
+                                                        {t('apiAccess')}
+                                                    </li>
+                                                )}
+                                            </ul>
+                                        </div>
 
-                                        <button
-                                            className="upgrade-btn"
-                                            onClick={() => handleUpgrade(pkg.id)}
-                                            disabled={isUpgrading !== null || isCurrent}
-                                        >
-                                            {isUpgrading === pkg.id ? (
-                                                <LoadingSpinner size="small" />
-                                            ) : isCurrent ? (
-                                                t('currentPlan') || 'Current Plan'
-                                            ) : (
-                                                <>
-                                                    <span>🚀</span> {t('upgradeNow') || 'Upgrade Now'}
-                                                </>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                                            <button
+                                                className="upgrade-btn"
+                                                onClick={() => handleUpgrade(pkg.id)}
+                                                disabled={isUpgrading !== null || isCancelling || isCurrent}
+                                            >
+                                                {isUpgrading === pkg.id ? (
+                                                    <LoadingSpinner size="small" />
+                                                ) : isCurrent ? (
+                                                    t('currentPlan') || 'Current Plan'
+                                                ) : (
+                                                    <>
+                                                        <span>🚀</span> {t('upgradeNow') || 'Upgrade Now'}
+                                                    </>
+                                                )}
+                                            </button>
+
+                                            {isCurrent && (
+                                                <button
+                                                    className="upgrade-btn cancel-btn"
+                                                    onClick={() => setShowCancelConfirm(true)}
+                                                    disabled={isCancelling || isUpgrading !== null}
+                                                    style={{
+                                                        background: 'transparent',
+                                                        border: '1px solid #ef4444',
+                                                        color: '#ef4444',
+                                                        marginTop: '4px'
+                                                    }}
+                                                >
+                                                    {isCancelling ? <LoadingSpinner size="small" /> : (t('cancelSubscription') || 'Cancel Subscription')}
+                                                </button>
                                             )}
-                                        </button>
+                                        </div>
                                     </div>
                                 )
                             })}
@@ -224,6 +317,27 @@ function SubscriptionModal({ onClose }) {
                     </div>
                 )}
             </div>
+
+            {txRef && (
+                <PaymentStatusModal
+                    txRef={txRef}
+                    onClose={handleClearTxRef}
+                    onRefresh={loadSubscriptionData}
+                />
+            )}
+
+            {showCancelConfirm && (
+                <ConfirmationModal
+                    title={t('cancelSubscription') || "Cancel Subscription"}
+                    message={t('cancelConfirm') || "Are you sure you want to cancel your current subscription?"}
+                    onConfirm={handleCancelSubscription}
+                    onCancel={() => setShowCancelConfirm(false)}
+                    confirmText={t('confirm') || "Yes, Cancel"}
+                    cancelText={t('back') || "No, Keep It"}
+                    type="danger"
+                    isLoading={isCancelling}
+                />
+            )}
         </BaseModal>
     )
 }

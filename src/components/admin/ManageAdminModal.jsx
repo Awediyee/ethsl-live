@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useToast } from '../../contexts/ToastContext'
 import ApiService from '../../services/api'
 import './AdminModals.css' // Premium UI styles
 // import './AdminConfigurationModal.css'
 
 function ManageAdminModal({ onClose }) {
     const { t } = useLanguage()
+    const { showToast } = useToast()
 
     const [admins, setAdmins] = useState([])
     const [loading, setLoading] = useState(false)
@@ -29,7 +31,7 @@ function ManageAdminModal({ onClose }) {
                 }
             } catch (err) {
                 console.error('Failed to fetch roles:', err)
-                setError('Failed to initialize: could not load roles')
+                setError(t('failedToLoadRoles'))
             }
         }
         fetchRole()
@@ -44,7 +46,7 @@ function ManageAdminModal({ onClose }) {
         return list.map(item => ({
             id: item.account?.account_id || item.accountInfo_id || Math.random(),
             accountId: item.account?.account_id, // Explicitly store account ID
-            name: `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Unknown Admin',
+            name: `${item.firstName || ''} ${item.lastName || ''}`.trim() || t('unknownAdmin'),
             email: item.account?.email || 'N/A',
             role: 'Admin', // Static label since we filter by Admin role
             roleId: item.account?.role, // Keep original ID (e.g. 2)
@@ -67,7 +69,7 @@ function ManageAdminModal({ onClose }) {
                 setHasMore(newAdmins.length === LIMIT)
             } catch (err) {
                 console.error('Failed to fetch admins:', err)
-                setError('Failed to load admins')
+                setError(t('failedToLoadAdmins'))
             } finally {
                 setLoading(false)
             }
@@ -107,7 +109,7 @@ function ManageAdminModal({ onClose }) {
     const handleToggleStatus = async (admin) => {
         const accId = admin.accountId || admin.id;
         if (!accId) {
-            alert('Error: Invalid Account ID');
+            showToast(t('invalidAccountId'), 'error');
             return;
         }
 
@@ -121,7 +123,7 @@ function ManageAdminModal({ onClose }) {
             }))
         } catch (err) {
             console.error('Failed to toggle admin status:', err)
-            alert(`Failed to toggle status: ${err.message || 'Unknown error'}`)
+            showToast(`${t('failedToToggleStatus')}: ${err.message || 'Unknown error'}`, 'error')
         }
     }
 
@@ -136,7 +138,7 @@ function ManageAdminModal({ onClose }) {
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content premium-modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2>{t('manageAdmin') || 'Manage Admins'}</h2>
+                    <h2>{t('manageAdmin')}</h2>
                     <button className="close-button" onClick={onClose}>&times;</button>
                 </div>
 
@@ -156,7 +158,7 @@ function ManageAdminModal({ onClose }) {
                                 animation: 'spin 1s ease-in-out infinite',
                                 marginBottom: '16px'
                             }}></div>
-                            <div>{t('loading') || 'Loading admins...'}</div>
+                            <div>{t('loading')}</div>
                         </div>
                     )}
 
@@ -178,12 +180,12 @@ function ManageAdminModal({ onClose }) {
 
                                 <div className="user-card-actions">
                                     <span className={`badge ${admin.status === 'active' ? 'badge-active' : 'badge-inactive'}`}>
-                                        {admin.status || 'Active'}
+                                        {admin.status === 'active' ? t('activeLabel') : t('inactiveLabel')}
                                     </span>
 
                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                         <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: '8px' }}>
-                                            ADMIN
+                                            {t('adminLabel')}
                                         </span>
                                         <button
                                             onClick={(e) => {
@@ -191,7 +193,7 @@ function ManageAdminModal({ onClose }) {
                                                 handleToggleStatus(admin);
                                             }}
                                             className="icon-btn"
-                                            title={admin.status === 'active' ? (t('deactivate') || 'Deactivate') : (t('activate') || 'Activate')}
+                                            title={admin.status === 'active' ? t('deactivate') : t('activate')}
                                             style={{ opacity: admin.status === 'active' ? 1 : 0.6 }}
                                         >
                                             {admin.status === 'active' ? '⏸️' : '▶️'}
@@ -204,7 +206,7 @@ function ManageAdminModal({ onClose }) {
                 </div>
 
                 <div className="modal-footer">
-                    <button className="btn btn-secondary" onClick={onClose}>{t('close') || 'Close'}</button>
+                    <button className="btn btn-secondary" onClick={onClose}>{t('close')}</button>
                 </div>
             </div>
         </div>

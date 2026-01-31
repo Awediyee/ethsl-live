@@ -46,6 +46,15 @@ function AppContent() {
 
   const [editingRole, setEditingRole] = useState(null)
 
+  // Detect payment return (tx_ref) and auto-open subscription modal
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if ((params.has('tx_ref') || params.has('transactionid')) && isLoggedIn && !modalState.activeModal) {
+      console.log('💳 Payment return detected, auto-opening subscription modal')
+      modalActions.setActiveModal('Subscription')
+    }
+  }, [isLoggedIn, modalState.activeModal])
+
   // Initialize theme from localStorage
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme')
@@ -65,9 +74,9 @@ function AppContent() {
 
         <Route path="/" element={
           !isLoggedIn ? (
-            <Navigate to="/login" replace />
+            <Navigate to={`/login${window.location.search}`} replace />
           ) : user?.role !== 'user' ? (
-            <Navigate to="/admin" replace />
+            <Navigate to={`/admin${window.location.search}`} replace />
           ) : (
             <HomePage />
           )
@@ -77,7 +86,7 @@ function AppContent() {
           <Route path="/admin" element={<AdminPage />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to={`/${window.location.search}`} replace />} />
       </Routes>
 
       {showFeedbackModal && (

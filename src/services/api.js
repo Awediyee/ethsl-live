@@ -68,21 +68,23 @@ class ApiService {
       ...options.headers,
     }
 
-    // Add auth token if available (check instance state or localStorage fallback)
-    const token = this.authToken || localStorage.getItem('authToken')
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    } else {
-      console.warn('⚠️ Making request without auth token:', url)
+    // Add auth token ONLY if requested for specific endpoints
+    if (options.requireAuth) {
+      const token = this.authToken || localStorage.getItem('authToken')
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      } else {
+        console.warn('⚠️ Authentication required for:', url, 'but no token found')
+      }
     }
 
     const config = {
-      method: options.method || 'GET', // Explicit method handling
-      headers,
       mode: 'cors',
       credentials: 'omit', // Use omit to avoid CORS preflight issues
       signal: controller.signal,
-      ...options, // This will override method if provided
+      ...options, // Spread basic options first
+      method: options.method || 'GET', // Default methodology if not provided
+      headers, // Assign headers LAST to ensure they are NOT overwritten by options.headers
     }
 
     // Remove timeout from config to avoid conflicts
@@ -173,13 +175,18 @@ class ApiService {
     } catch (error) {
       clearTimeout(timeoutId)
 
-      console.error('API request failed:', {
-        url,
-        error: error.name,
-        message: error.message,
-        timestamp: new Date().toISOString(),
-        stack: error.stack
-      })
+      // Support silent errors (don't log to console.error)
+      const isSilent = options.silent && (error.status === 404 || error.status === 401)
+
+      if (!isSilent) {
+        console.error('API request failed:', {
+          url,
+          error: error.name,
+          message: error.message,
+          timestamp: new Date().toISOString(),
+          stack: error.stack
+        })
+      }
 
       // Handle specific error types
       if (error.name === 'AbortError') {
@@ -334,6 +341,7 @@ class ApiService {
         currentPassword,
         newPassword
       }),
+      requireAuth: true,
     })
   }
 
@@ -432,6 +440,20 @@ class ApiService {
     }
   }
 
+  // Finalize account verification (used by Admin)
+  async verifyAccount(payload) {
+    console.log('🛡️ Verifying account creation:', payload)
+    return this.makeRequest('/accounts/verify', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: payload.email,
+        role_id: parseInt(payload.role_id),
+        otp: payload.otp
+      }),
+      requireAuth: true,
+    })
+  }
+
   // Decode JWT token to extract user information
   decodeJWT(token) {
     try {
@@ -470,6 +492,7 @@ class ApiService {
     const response = await this.makeRequest('/accounts/profile', {
       method: 'PUT',
       body: JSON.stringify(profileData),
+      requireAuth: true,
     })
 
     // Clear cached profile data
@@ -482,6 +505,7 @@ class ApiService {
     console.log('👤 Fetching account info')
     return this.makeRequest('/accounts-infos', {
       method: 'GET',
+      requireAuth: true,
     })
   }
 
@@ -491,6 +515,7 @@ class ApiService {
     const response = await this.makeRequest('/accounts-infos', {
       method: 'PATCH',
       body: JSON.stringify(accountData),
+      requireAuth: true,
     })
 
     // Clear cache if needed
@@ -505,6 +530,7 @@ class ApiService {
     try {
       return await this.makeRequest('/analytics', {
         method: 'GET',
+        requireAuth: true,
       })
     } catch (error) {
       console.warn('Analytics endpoint failed:', error)
@@ -517,6 +543,7 @@ class ApiService {
     try {
       return await this.makeRequest('/admin/users/count', {
         method: 'GET',
+        requireAuth: true,
       })
     } catch (error) {
       console.warn('User count endpoint not available')
@@ -529,6 +556,7 @@ class ApiService {
     try {
       return await this.makeRequest('/admin/translations/count', {
         method: 'GET',
+        requireAuth: true,
       })
     } catch (error) {
       console.warn('Translation count endpoint not available')
@@ -541,6 +569,7 @@ class ApiService {
     try {
       return await this.makeRequest('/admin/activity/recent', {
         method: 'GET',
+        requireAuth: true,
       })
     } catch (error) {
       console.warn('Recent activity endpoint not available')
@@ -553,6 +582,7 @@ class ApiService {
     console.log('🛡️ Fetching roles')
     return this.makeRequest('/roles', {
       method: 'GET',
+      requireAuth: true,
     })
   }
 
@@ -561,25 +591,53 @@ class ApiService {
     return this.makeRequest('/roles', {
       method: 'POST',
       body: JSON.stringify(roleData),
+      requireAuth: true,
     })
   }
 
-  async updateRole(roleData) {
-    console.log('🛡️ Updating role:', roleData)
-    // Assuming ID is included in roleData or we need to pass it separately.
-    // Based on "same endpoint", we send payload to /roles
-    return this.makeRequest('/roles', {
+  async updateRole(roleId, roleData) {
+    console.log(`🛡️ Updating role ${roleId}:`, roleData)
+    return this.makeRequest(`/roles/${roleId}`, {
       method: 'PATCH',
       body: JSON.stringify(roleData),
+      requireAuth: true,
     })
   }
 
   async deleteRole(roleId) {
     console.log('🛡️ Deleting role:', roleId)
-    // Sending ID in body for DELETE on same endpoint
-    return this.makeRequest('/roles', {
+    return this.makeRequest(`/roles/${roleId}`, {
       method: 'DELETE',
-      body: JSON.stringify({ id: roleId }),
+      requireAuth: true,
+    })
+  }
+
+  // Permission Management
+  async getPermissions() {
+    console.log('🛡️ Fetching all permissions')
+    return this.makeRequest('/permissions', {
+      method: 'GET',
+      requireAuth: true,
+    })
+  }
+
+  async getRolePermissions(roleId) {
+    console.log(`🛡️ Fetching permissions for role ${roleId}`)
+    return this.makeRequest(`/roles-permissions/${roleId}`, {
+      method: 'GET',
+      requireAuth: true,
+    })
+  }
+
+  async toggleRolePermission(roleId, permissionId) {
+    console.log(`🛡️ Toggling permission ${permissionId} for role ${roleId}`)
+    return this.makeRequest('/roles-permissions', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        role_id: roleId,
+        permission_id: permissionId
+      }),
+      requireAuth: true,
     })
   }
 
@@ -588,6 +646,7 @@ class ApiService {
     console.log(`👥 Fetching accounts: limit=${limit}, role=${roleId}, page=${page}`)
     return this.makeRequest(`/accounts-infos/${limit}?role_id=${roleId}&p=${page}`, {
       method: 'GET',
+      requireAuth: true,
     })
   }
 
@@ -596,6 +655,7 @@ class ApiService {
     console.log(`🔄 Toggling status for account: ${accountId}`)
     return this.makeRequest(`/accounts/toggle-status/${accountId}`, {
       method: 'PATCH',
+      requireAuth: true,
     })
   }
 
@@ -717,6 +777,7 @@ class ApiService {
     console.log('📦 Fetching subscription packages')
     return this.makeRequest('/subscription-packages', {
       method: 'GET',
+      requireAuth: true,
     })
   }
 
@@ -725,6 +786,7 @@ class ApiService {
     const response = await this.makeRequest('/subscription-packages', {
       method: 'POST',
       body: JSON.stringify(packageData),
+      requireAuth: true,
     })
     this.clearCacheForEndpoint('/subscription-packages')
     return response
@@ -735,6 +797,7 @@ class ApiService {
     const response = await this.makeRequest(`/subscription-packages/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(packageData),
+      requireAuth: true,
     })
     this.clearCacheForEndpoint('/subscription-packages')
     return response
@@ -744,6 +807,7 @@ class ApiService {
     console.log(`📦 Deleting subscription package ${id}`)
     const response = await this.makeRequest(`/subscription-packages/${id}`, {
       method: 'DELETE',
+      requireAuth: true,
     })
     this.clearCacheForEndpoint('/subscription-packages')
     return response
@@ -752,8 +816,20 @@ class ApiService {
   // User Current Subscription Status
   async getUserCurrentSubscription() {
     console.log('📦 Checking user current subscription status')
-    return this.makeRequest('/subscription', {
+    return this.makeRequest('/subscriptions', {
       method: 'GET',
+      silent: true, // Expected 404 if no subscription
+      requireAuth: true,
+    })
+  }
+
+  // Admin: Get specific user subscription
+  async getAccountSubscription(accountId) {
+    console.log(`📦 Checking subscription for account: ${accountId}`)
+    return this.makeRequest(`/subscriptions?account_id=${accountId}`, {
+      method: 'GET',
+      silent: true,
+      requireAuth: true,
     })
   }
 
@@ -762,12 +838,73 @@ class ApiService {
     return this.makeRequest('/subscriptions/initialize', {
       method: 'POST',
       body: JSON.stringify(payload),
+      requireAuth: true,
+    })
+  }
+
+  // Verify payment status
+  async checkPaymentStatus(transactionId) {
+    console.log(`📦 Verifying payment status for transactionid: ${transactionId}`)
+    return this.makeRequest(`/subscriptions/${transactionId}`, {
+      method: 'GET',
+      requireAuth: true,
+    })
+  }
+
+  async cancelSubscription() {
+    console.log('📦 Cancelling user subscription')
+    return this.makeRequest('/subscriptions', {
+      method: 'PATCH',
+      requireAuth: true,
     })
   }
 
   // Batch multiple requests
   async batchRequests(requests) {
     return Promise.all(requests.map(req => this.makeRequest(req.endpoint, req.options)))
+  }
+
+  // API Key (Access Token) Management
+  async getApiKeys(limit = 12, page = 1) {
+    console.log(`🔑 Fetching API keys: limit=${limit}, page=${page}`)
+    return this.makeRequest(`/access-tokens/${limit}?p=${page}`, {
+      method: 'GET',
+      requireAuth: true,
+    })
+  }
+
+  async createApiKey(name) {
+    console.log(`🔑 Creating API key: ${name}`)
+    return this.makeRequest('/access-tokens', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+      requireAuth: true,
+    })
+  }
+
+  async updateApiKey(id, name) {
+    console.log(`🔑 Updating API key ${id}: ${name}`)
+    return this.makeRequest(`/access-tokens/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+      requireAuth: true,
+    })
+  }
+
+  async deleteApiKey(id) {
+    console.log(`🔑 Deleting API key ${id}`)
+    return this.makeRequest(`/access-tokens/${id}`, {
+      method: 'DELETE',
+      requireAuth: true,
+    })
+  }
+
+  async toggleApiKeyStatus(id) {
+    console.log(`🔑 Toggling status for API key ${id}`)
+    return this.makeRequest(`/access-tokens/${id}/toggle-status`, {
+      method: 'PATCH',
+      requireAuth: true,
+    })
   }
 }
 
@@ -780,18 +917,6 @@ const loggingInterceptor = {
   },
   response: (response, url) => {
     console.log(`[Interceptor] Response from: ${url} - Status: ${response.status}`)
-    return response
-  }
-}
-
-const authRefreshInterceptor = {
-  name: 'authRefreshInterceptor',
-  response: async (response, url) => {
-    if (response.status === 401) {
-      console.log('[Interceptor] 401 Unauthorized, attempting token refresh...')
-      // Implement token refresh logic here
-      // Example: await refreshTokenAndRetry()
-    }
     return response
   }
 }

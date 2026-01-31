@@ -4,6 +4,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { useToast } from '../../contexts/ToastContext'
 import ApiService from '../../services/api'
 import LoadingSpinner from '../common/LoadingSpinner'
+import ConfirmationModal from '../common/ConfirmationModal'
 import './ManageSubscriptionsModal.css'
 
 function ManageSubscriptionsModal({ onClose }) {
@@ -13,6 +14,7 @@ function ManageSubscriptionsModal({ onClose }) {
     const [loading, setLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
     const [editingPackage, setEditingPackage] = useState(null)
+    const [confirmDeletePackage, setConfirmDeletePackage] = useState(null)
     const [isFormOpen, setIsFormOpen] = useState(false)
 
     const [formData, setFormData] = useState({
@@ -28,8 +30,20 @@ function ManageSubscriptionsModal({ onClose }) {
     const fetchPackages = async () => {
         setLoading(true)
         try {
-            const response = await ApiService.getSubscriptionPackages()
-            setPackages(response.data || response || [])
+            const [pkgResponse, analyticsData] = await Promise.all([
+                ApiService.getSubscriptionPackages(),
+                ApiService.getAdminAnalytics().catch(() => ({}))
+            ])
+
+            const pkgs = pkgResponse.data || pkgResponse || []
+
+            // Map subscriber counts if available in analytics
+            const packagesWithCounts = pkgs.map(pkg => ({
+                ...pkg,
+                subscriberCount: analyticsData.usersPerPackage?.[pkg.id] || analyticsData.packageStats?.[pkg.id] || 0
+            }))
+
+            setPackages(packagesWithCounts)
         } catch (error) {
             console.error('Detailed Subscription Fetch Error:', error)
             showToast(t('packageError'), 'error')
@@ -70,15 +84,35 @@ function ManageSubscriptionsModal({ onClose }) {
         setIsFormOpen(true)
     }
 
-    const handleDelete = async (id) => {
-        if (!window.confirm(t('deletePackageConfirm'))) return
+    const handleDelete = (pkg) => {
+        setConfirmDeletePackage(pkg)
+    }
 
+    const performDelete = async () => {
+        if (!confirmDeletePackage) return
+
+        const pkgId = confirmDeletePackage.id || confirmDeletePackage._id
+        if (!pkgId) {
+            showToast(t('invalidAccountId'), 'error') // Reusing this or use a generic one
+            setConfirmDeletePackage(null)
+            return
+        }
+
+        setConfirmDeletePackage(null)
         try {
-            await ApiService.deleteSubscriptionPackage(id)
+            await ApiService.deleteSubscriptionPackage(pkgId)
             showToast(t('packageDeleted'), 'success')
             fetchPackages()
         } catch (error) {
-            showToast(t('packageError'), 'error')
+            console.error('Delete error:', error)
+
+            // Check for specific "in use" error from server
+            const errMsg = error.message || ''
+            if (errMsg.includes('used in subscription') || error.status === 412) {
+                showToast(t('packageInUse'), 'error')
+            } else {
+                showToast(t('packageError'), 'error')
+            }
         }
     }
 
@@ -127,13 +161,13 @@ function ManageSubscriptionsModal({ onClose }) {
     }
 
     return (
-        <BaseModal title={t('manageSubscriptions')} onClose={onClose} maxWidth="1000px">
+        <BaseModal title={t('manageSubscriptionsTitle')} onClose={onClose} maxWidth="1000px">
             <div style={{ padding: '24px' }}>
                 {!isFormOpen ? (
                     <>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                             <div style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                                Manage and configure available subscription plans for users.
+                                {t('manageSubscriptionsDesc')}
                             </div>
                             <button className="btn-primary" onClick={handleAddNew} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -159,17 +193,24 @@ function ManageSubscriptionsModal({ onClose }) {
                                                 <span className="price-currency">ETB</span>
                                             </div>
                                         </div>
+
+                                        <div className="subscriber-count-badge">
+                                            <span className="count-icon">👥</span>
+                                            <span className="count-value">{pkg.subscriberCount || 0}</span>
+                                            <span className="count-label">{t('subscribers')}</span>
+                                        </div>
+
                                         <div className="package-description">
                                             {pkg.description}
                                         </div>
                                         <div className="package-features">
                                             <div className="feature-item">
                                                 <span className="feature-icon">⏱️</span>
-                                                {pkg.lengthOfSession} {t('minutes') || 'Minutes'} per session
+                                                {pkg.lengthOfSession} {t('minutes')} {t('perSession')}
                                             </div>
                                             <div className="feature-item">
                                                 <span className="feature-icon">🔄</span>
-                                                {pkg.numberOfSessions} {t('sessions') || 'Sessions'}
+                                                {pkg.numberOfSessions} {t('sessions')}
                                             </div>
                                             <div className="feature-item">
                                                 <span className="feature-icon" style={{ opacity: pkg.historyAccess ? 1 : 0.3 }}>📜</span>
@@ -184,7 +225,7 @@ function ManageSubscriptionsModal({ onClose }) {
                                             <button className="btn-edit" onClick={() => handleEdit(pkg)}>
                                                 <span>✏️</span> {t('edit')}
                                             </button>
-                                            <button className="btn-delete" onClick={() => handleDelete(pkg.id)}>
+                                            <button className="btn-delete" onClick={() => handleDelete(pkg)}>
                                                 <span>🗑️</span> {t('delete')}
                                             </button>
                                         </div>
@@ -193,8 +234,8 @@ function ManageSubscriptionsModal({ onClose }) {
                                 {packages.length === 0 && (
                                     <div className="empty-packages" style={{ gridColumn: '1 / -1' }}>
                                         <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>
-                                        <h3>No Packages Created</h3>
-                                        <p>Get started by creating your first subscription package.</p>
+                                        <h3>{t('noPackagesCreated')}</h3>
+                                        <p>{t('getStartedPackage')}</p>
                                     </div>
                                 )}
                             </div>
@@ -291,6 +332,17 @@ function ManageSubscriptionsModal({ onClose }) {
                     </form>
                 )}
             </div>
+
+            {confirmDeletePackage && (
+                <ConfirmationModal
+                    title={t('deletePackage')}
+                    message={`${t('deletePackageConfirm')} (${confirmDeletePackage.package_name || confirmDeletePackage.packageName})`}
+                    onConfirm={performDelete}
+                    onCancel={() => setConfirmDeletePackage(null)}
+                    confirmText={t('delete')}
+                    type="danger"
+                />
+            )}
         </BaseModal>
     )
 }

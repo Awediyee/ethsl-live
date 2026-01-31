@@ -9,11 +9,11 @@ const ProtectedRoute = ({ requiredRole, redirectPath = '/login' }) => {
     }
 
     if (!isLoggedIn) {
-        return <Navigate to={redirectPath} replace />;
+        return <Navigate to={`${redirectPath}${window.location.search}`} replace />;
     }
 
     if (requiredRole && user?.role !== requiredRole && !user?.isAdmin) {
-        return <Navigate to="/" replace />;
+        return <Navigate to={`/${window.location.search}`} replace />;
     }
 
     return <Outlet />;

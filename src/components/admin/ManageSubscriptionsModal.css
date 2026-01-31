@@ -2,7 +2,30 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
-    margin-top: 20px;
+    margin-top: 8px;
+}
+
+.subscriber-count-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(59, 130, 246, 0.1);
+    color: #2563eb;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    margin: 12px 0;
+    width: fit-content;
+}
+
+.count-icon {
+    font-size: 14px;
+}
+
+.count-label {
+    opacity: 0.8;
+    font-weight: 500;
 }
 
 .package-card {

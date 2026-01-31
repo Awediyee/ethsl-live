@@ -66,7 +66,7 @@ function ForgotPasswordModal({ onClose, onSwitchToLogin }) {
         e.preventDefault()
         const otpCode = code.join('')
         if (otpCode.length !== 6) {
-            setError(t('otpRequired') || 'Enter 6-digit code')
+            setError(t('otpRequired'))
             return
         }
 
@@ -80,9 +80,9 @@ function ForgotPasswordModal({ onClose, onSwitchToLogin }) {
                 if (responseData.accountId) setAccountId(responseData.accountId)
                 setResetToken(responseData.token)
                 setStep(3)
-                setSuccessMessage(t('codeVerified') || 'Code verified successfully')
+                setSuccessMessage(t('codeVerified'))
             } else {
-                setError(t('verificationFailed') || 'Verification failed')
+                setError(t('verificationFailed'))
             }
         } catch (err) {
             console.error(err)
@@ -101,7 +101,7 @@ function ForgotPasswordModal({ onClose, onSwitchToLogin }) {
         }
 
         if (newPassword.length < 6) {
-            setError(t('passwordLength') || 'Password must be at least 6 characters')
+            setError(t('passwordLength'))
             return
         }
 
@@ -114,7 +114,7 @@ function ForgotPasswordModal({ onClose, onSwitchToLogin }) {
         setError('')
         try {
             await ApiService.resetPassword(accountId, newPassword, resetToken)
-            setSuccessMessage(t('passwordResetSuccess') || 'Password reset successfully')
+            setSuccessMessage(t('passwordResetSuccess'))
             setTimeout(() => {
                 onSwitchToLogin()
             }, 2000)

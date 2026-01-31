@@ -17,8 +17,10 @@ function AdminPage() {
     const [analytics, setAnalytics] = useState({
         totalUsers: 0,
         totalTranslations: 0,
-        activeSessions: 0,
-        systemHealth: 0
+        totalSubscriptions: 0,
+        dailyUsers: 0,
+        dailyTranslations: 0,
+        dailySubscriptions: 0
     })
     const [loading, setLoading] = useState(true)
 
@@ -29,13 +31,18 @@ function AdminPage() {
         const fetchAnalytics = async () => {
             setLoading(true)
             try {
-                const data = await ApiService.getAdminAnalytics()
-                setAnalytics({
-                    totalUsers: data.totalUsers || 0,
-                    totalTranslations: data.totalTranslations || 0,
-                    activeSessions: data.activeSessions || 0,
-                    systemHealth: data.systemHealth || 100
-                })
+                const response = await ApiService.getAdminAnalytics()
+                if (response.status === 'success' && response.data) {
+                    const { total, day } = response.data
+                    setAnalytics({
+                        totalUsers: (total.accounts?.user || 0) + (total.accounts?.admin || 0),
+                        totalTranslations: total.translations || 0,
+                        totalSubscriptions: total.subscriptions || 0,
+                        dailyUsers: (day.accounts?.user || 0) + (day.accounts?.admin || 0),
+                        dailyTranslations: day.translations || 0,
+                        dailySubscriptions: day.subscriptions || 0
+                    })
+                }
             } catch (error) {
                 console.error('Failed to fetch analytics:', error)
                 // Optionally handle error state here, e.g. show toast
@@ -65,7 +72,11 @@ function AdminPage() {
                 <div className="admin-header">
                     <div className="admin-header-content">
                         <h1 className="admin-title">{t('dashboard')}</h1>
-                        <p className="admin-subtitle">{t('welcomeBack')}, {userEmail.split('@')[0]}!</p>
+                        <p className="admin-subtitle">
+                            {t('welcomeBack')}, {user?.firstName && user?.lastName
+                                ? `${user.firstName} ${user.lastName}`
+                                : (user?.firstName || user?.lastName || userEmail.split('@')[0])}!
+                        </p>
                     </div>
                     <div className="admin-header-actions">
                         <button className="admin-btn admin-btn-secondary" onClick={() => window.location.reload()}>
@@ -107,12 +118,39 @@ function AdminPage() {
                         loading={loading}
                     />
                     <AnalyticsCard
-                        title={t('activeSessions')}
-                        value={analytics.activeSessions}
-                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>}
-                        trend="down"
-                        trendValue={3}
+                        title={t('totalSubscriptions')}
+                        value={analytics.totalSubscriptions}
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>}
+                        trend={analytics.totalSubscriptions > 0 ? "up" : null}
+                        trendValue={analytics.totalSubscriptions > 0 ? 5 : 0}
                         color="warning"
+                        loading={loading}
+                    />
+                    <AnalyticsCard
+                        title={t('dailyUsers')}
+                        value={analytics.dailyUsers}
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><polyline points="17 11 19 13 23 9" /></svg>}
+                        trend={analytics.dailyUsers > 0 ? "up" : null}
+                        trendValue={analytics.dailyUsers > 0 ? 10 : 0}
+                        color="info"
+                        loading={loading}
+                    />
+                    <AnalyticsCard
+                        title={t('dailyTranslations')}
+                        value={analytics.dailyTranslations}
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2" /><path d="M21 9v6" /><path d="M3 11V9a2 2 0 0 1 2-2h4" /><path d="M5 11h4v4" /><path d="M5 15v2a2 2 0 0 0 2 2h2" /><path d="M11 19h4" /><path d="M11 9h4" /><path d="M13 2v14" /></svg>}
+                        trend={analytics.dailyTranslations > 0 ? "up" : null}
+                        trendValue={analytics.dailyTranslations > 0 ? 15 : 0}
+                        color="success"
+                        loading={loading}
+                    />
+                    <AnalyticsCard
+                        title={t('dailySubscriptions')}
+                        value={analytics.dailySubscriptions}
+                        icon={<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4" /><path d="M4 6v12c0 1.1.9 2 2 2h14v-4" /><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z" /></svg>}
+                        trend={analytics.dailySubscriptions > 0 ? "up" : null}
+                        trendValue={analytics.dailySubscriptions > 0 ? 4 : 0}
+                        color="primary"
                         loading={loading}
                     />
 
@@ -128,7 +166,7 @@ function AdminPage() {
                                 <span className="quick-action-icon">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                                 </span>
-                                <span className="quick-action-text">{t('manageRoles') || 'Manage Roles'}</span>
+                                <span className="quick-action-text">{t('manageRoles')}</span>
                             </button>
                             <button className="quick-action-btn" onClick={() => modalActions.openModal('ManageUsers')}>
                                 <span className="quick-action-icon">

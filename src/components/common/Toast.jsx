@@ -1,7 +1,10 @@
 import { useEffect } from 'react'
+import { useLanguage } from '../../contexts/LanguageContext'
 import './Toast.css'
 
 function Toast({ message, type = 'info', title, onClose }) {
+    const { t } = useLanguage()
+
     useEffect(() => {
         const timer = setTimeout(() => {
             onClose()
@@ -28,14 +31,14 @@ function Toast({ message, type = 'info', title, onClose }) {
         if (title) return title
         switch (type) {
             case 'success':
-                return 'Success'
+                return t('toastSuccess')
             case 'error':
-                return 'Error'
+                return t('toastError')
             case 'warning':
-                return 'Warning'
+                return t('toastWarning')
             case 'info':
             default:
-                return 'Info'
+                return t('toastInfo')
         }
     }
 

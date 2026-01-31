@@ -16,29 +16,26 @@ function Header({ isLoggedIn, isAdmin, onLoginClick, userEmail, userData, onLogo
           <h1 className="header-title">{t('appName')}</h1>
         </div>
         <div className="header-actions">
-          {/* Only show menu button for non-admin logged in users, or login button for guests */}
-          {(!isLoggedIn || !isAdmin) && (
-            <button
-              className="menu-button"
-              onClick={() => {
-                if (!isLoggedIn) {
-                  onLoginClick()
-                } else {
-                  setShowUserMenu(!showUserMenu)
-                }
-              }}
-            >
-              <div className="hamburger">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            </button>
-          )}
+          <button
+            className="menu-button"
+            onClick={() => {
+              if (!isLoggedIn) {
+                onLoginClick()
+              } else {
+                setShowUserMenu(!showUserMenu)
+              }
+            }}
+          >
+            <div className="hamburger">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </button>
         </div>
       </div>
 
-      {showUserMenu && !isAdmin && (
+      {showUserMenu && isLoggedIn && (
         <UserMenu
           onClose={() => setShowUserMenu(false)}
           user={userData || { email: userEmail }}

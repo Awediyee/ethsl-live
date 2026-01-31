@@ -6,7 +6,7 @@
 .admin-container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 24px 20px;
+    padding: 16px 20px;
     animation: fadeIn 0.6s ease-out;
 }
 
@@ -14,7 +14,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
     flex-wrap: wrap;
     gap: 20px;
 }
@@ -25,10 +25,10 @@
 }
 
 .admin-title {
-    font-size: 36px;
+    font-size: 28px;
     font-weight: 700;
     color: var(--text-primary);
-    margin: 0 0 8px 0;
+    margin: 0 0 4px 0;
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -36,7 +36,7 @@
 }
 
 .admin-subtitle {
-    font-size: 16px;
+    font-size: 14px;
     color: var(--text-secondary);
     margin: 0;
 }
@@ -51,7 +51,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 12px 20px;
+    padding: 8px 16px;
     border-radius: 10px;
     font-size: 14px;
     font-weight: 600;
@@ -85,8 +85,8 @@
 /* Analytics Grid */
 .analytics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
     margin-bottom: 24px;
 }
 
@@ -100,7 +100,7 @@
 .admin-section {
     background: var(--bg-secondary);
     border-radius: 16px;
-    padding: 24px;
+    padding: 16px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     border: 1px solid var(--border-color);
     animation: fadeInUp 0.6s ease-out;
@@ -202,8 +202,8 @@
 /* Quick Actions */
 .quick-actions {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
 }
 
 .quick-action-btn {
@@ -228,7 +228,7 @@
 }
 
 .quick-action-icon {
-    font-size: 32px;
+    font-size: 28px;
 }
 
 .quick-action-text {

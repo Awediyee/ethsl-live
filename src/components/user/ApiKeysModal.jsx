@@ -1,30 +1,21 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import './ApiKeysModal.css'
 import BaseModal from '../common/BaseModal'
+import LoadingSpinner from '../common/LoadingSpinner'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useToast } from '../../contexts/ToastContext'
+import ApiService from '../../services/api'
 
 function ApiKeysModal({ onClose }) {
     const { t } = useLanguage()
+    const { showToast } = useToast()
 
-    // Initialize API keys from localStorage or use a default one
-    const [apiKeys, setApiKeys] = useState(() => {
-        const savedKeys = localStorage.getItem('ethsl_api_keys')
-        if (savedKeys) {
-            try {
-                return JSON.parse(savedKeys)
-            } catch (e) {
-                console.error('Failed to parse saved API keys:', e)
-            }
-        }
-        return [
-            {
-                id: 1,
-                name: 'd',
-                key: 'sk-ffe81**************************2080',
-                created: '2026-01-22',
-                lastUsed: '-'
-            }
-        ]
+    const [apiKeys, setApiKeys] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [pagination, setPagination] = useState({
+        current_page: 1,
+        total_page: 1,
+        total: 0
     })
 
     const [showCreateForm, setShowCreateForm] = useState(false)
@@ -34,47 +25,97 @@ function ApiKeysModal({ onClose }) {
 
     const [confirmDeleteId, setConfirmDeleteId] = useState(null)
     const [editingKey, setEditingKey] = useState(null)
+    const [isProcessing, setIsProcessing] = useState(false)
 
-    // Save to localStorage whenever apiKeys changes
+    const loadApiKeys = useCallback(async (page = 1) => {
+        try {
+            setLoading(true)
+            const response = await ApiService.getApiKeys(12, page)
+            if (response.status === 'success') {
+                setApiKeys(response.data.data || [])
+                setPagination({
+                    current_page: response.data.current_page,
+                    total_page: response.data.total_page,
+                    total: response.data.total
+                })
+            }
+        } catch (error) {
+            console.error('Failed to load API keys:', error)
+            showToast(t('failedToLoadKeys'), 'error')
+        } finally {
+            setLoading(false)
+        }
+    }, [t, showToast])
+
     useEffect(() => {
-        localStorage.setItem('ethsl_api_keys', JSON.stringify(apiKeys))
-    }, [apiKeys])
+        loadApiKeys()
+    }, [loadApiKeys])
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (confirmDeleteId) {
-            setApiKeys(apiKeys.filter(key => key.id !== confirmDeleteId))
-            setConfirmDeleteId(null)
+            setIsProcessing(true)
+            try {
+                await ApiService.deleteApiKey(confirmDeleteId)
+                showToast(t('apiKeyDeleted'), 'success')
+                loadApiKeys(pagination.current_page)
+                setConfirmDeleteId(null)
+            } catch (error) {
+                showToast(error.message || t('deleteKeyError'), 'error')
+            } finally {
+                setIsProcessing(false)
+            }
         }
     }
 
-    const handleEditSave = (e) => {
+    const handleEditSave = async (e) => {
         e.preventDefault()
         if (editingKey && editingKey.name.trim()) {
-            setApiKeys(apiKeys.map(key =>
-                key.id === editingKey.id ? { ...key, name: editingKey.name } : key
-            ))
-            setEditingKey(null)
+            setIsProcessing(true)
+            try {
+                await ApiService.updateApiKey(editingKey.id, editingKey.name)
+                showToast(t('apiKeyUpdated'), 'success')
+                loadApiKeys(pagination.current_page)
+                setEditingKey(null)
+            } catch (error) {
+                showToast(error.message || t('updateKeyError'), 'error')
+            } finally {
+                setIsProcessing(false)
+            }
         }
     }
 
-    const handleCreateSubmit = (e) => {
+    const handleCreateSubmit = async (e) => {
         e.preventDefault()
         if (!newKeyName.trim()) return
 
-        const actualKey = `sk-${Math.random().toString(36).substring(2, 10)}${Math.random().toString(36).substring(2, 10)}${Math.random().toString(36).substring(2, 10)}`
-
-        const newKey = {
-            id: Date.now(),
-            name: newKeyName,
-            key: `${actualKey.substring(0, 8)}**************************${actualKey.substring(actualKey.length - 4)}`,
-            created: new Date().toISOString().split('T')[0],
-            lastUsed: '-'
+        setIsProcessing(true)
+        try {
+            const response = await ApiService.createApiKey(newKeyName)
+            if (response.status === 'success') {
+                showToast(t('apiKeyCreated'), 'success')
+                // The response might contain the actual clear token only once
+                if (response.data && response.data.token) {
+                    setCreatedKey(response.data.token)
+                }
+                loadApiKeys(1) // Go to first page to see new key
+                setShowCreateForm(false)
+                setNewKeyName('')
+            }
+        } catch (error) {
+            showToast(error.message || t('createKeyError'), 'error')
+        } finally {
+            setIsProcessing(false)
         }
+    }
 
-        setApiKeys([...apiKeys, newKey])
-        setCreatedKey(actualKey)
-        setShowCreateForm(false)
-        setNewKeyName('')
+    const handleToggleStatus = async (id) => {
+        try {
+            await ApiService.toggleApiKeyStatus(id)
+            showToast(t('statusUpdated'), 'success')
+            loadApiKeys(pagination.current_page)
+        } catch (error) {
+            showToast(error.message || t('statusUpdateError'), 'error')
+        }
     }
 
     const handleCopy = (text, id) => {
@@ -118,14 +159,15 @@ function ApiKeysModal({ onClose }) {
                                     placeholder={t('keyNamePlaceholder')}
                                     autoFocus
                                     required
+                                    disabled={isProcessing}
                                 />
                             </div>
                             <div className="form-actions">
-                                <button type="button" className="cancel-btn" onClick={() => setShowCreateForm(false)}>
+                                <button type="button" className="cancel-btn" onClick={() => setShowCreateForm(false)} disabled={isProcessing}>
                                     {t('cancelBtn')}
                                 </button>
-                                <button type="submit" className="submit-btn" disabled={!newKeyName.trim()}>
-                                    {t('createBtn')}
+                                <button type="submit" className="submit-btn" disabled={!newKeyName.trim() || isProcessing}>
+                                    {isProcessing ? <LoadingSpinner size="small" /> : t('createBtn')}
                                 </button>
                             </div>
                         </form>
@@ -135,11 +177,11 @@ function ApiKeysModal({ onClose }) {
                         <h3 className="view-subtitle warning">{t('confirmDeleteTitle')}</h3>
                         <p className="view-desc">{t('confirmDeleteDesc')}</p>
                         <div className="form-actions">
-                            <button className="cancel-btn" onClick={() => setConfirmDeleteId(null)}>
+                            <button className="cancel-btn" onClick={() => setConfirmDeleteId(null)} disabled={isProcessing}>
                                 {t('cancelBtn')}
                             </button>
-                            <button className="submit-btn danger" onClick={handleDelete}>
-                                {t('delete')}
+                            <button className="submit-btn danger" onClick={handleDelete} disabled={isProcessing}>
+                                {isProcessing ? <LoadingSpinner size="small" /> : t('delete')}
                             </button>
                         </div>
                     </div>
@@ -156,14 +198,15 @@ function ApiKeysModal({ onClose }) {
                                     onChange={(e) => setEditingKey({ ...editingKey, name: e.target.value })}
                                     autoFocus
                                     required
+                                    disabled={isProcessing}
                                 />
                             </div>
                             <div className="form-actions">
-                                <button type="button" className="cancel-btn" onClick={() => setEditingKey(null)}>
+                                <button type="button" className="cancel-btn" onClick={() => setEditingKey(null)} disabled={isProcessing}>
                                     {t('cancelBtn')}
                                 </button>
-                                <button type="submit" className="submit-btn" disabled={!editingKey.name.trim()}>
-                                    {t('saveBtn')}
+                                <button type="submit" className="submit-btn" disabled={!editingKey.name.trim() || isProcessing}>
+                                    {isProcessing ? <LoadingSpinner size="small" /> : t('saveBtn')}
                                 </button>
                             </div>
                         </form>
@@ -171,76 +214,110 @@ function ApiKeysModal({ onClose }) {
                 ) : (
                     <>
                         <p className="api-keys-description">
-                            {t('apiKeysDesc')} {t('apiKeysDeepSeekNote')}
+                            {t('apiKeysDesc')}
                         </p>
 
                         <div className="api-keys-table-container">
-                            <table className="api-keys-table">
-                                <thead>
-                                    <tr>
-                                        <th>{t('apiKeyName')}</th>
-                                        <th>{t('apiKeyKey')}</th>
-                                        <th>{t('apiKeyCreated')}</th>
-                                        <th>{t('apiKeyLastUsed')}</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {apiKeys.length > 0 ? (
-                                        apiKeys.map((key) => (
-                                            <tr key={key.id}>
-                                                <td>{key.name}</td>
-                                                <td className="key-cell">
-                                                    {key.key}
-                                                    <button
-                                                        className="copy-icon-btn"
-                                                        onClick={() => handleCopy(key.key, key.id)}
-                                                        title={t('copyKey')}
-                                                    >
-                                                        {copyFeedback === key.id ? '✓' : '📋'}
-                                                    </button>
-                                                </td>
-                                                <td>{key.created}</td>
-                                                <td>{key.lastUsed}</td>
-                                                <td className="actions-cell">
-                                                    <button
-                                                        className="action-icon-btn"
-                                                        onClick={() => setEditingKey({ id: key.id, name: key.name })}
-                                                        title={t('edit')}
-                                                    >
-                                                        <span className="icon">✎</span>
-                                                    </button>
-                                                    <button
-                                                        className="action-icon-btn delete"
-                                                        onClick={() => setConfirmDeleteId(key.id)}
-                                                        title={t('delete')}
-                                                    >
-                                                        <span className="icon">🗑️</span>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
+                            {loading ? (
+                                <div className="loading-container" style={{ padding: '40px', textAlign: 'center' }}>
+                                    <LoadingSpinner size="large" />
+                                    <p style={{ marginTop: '10px' }}>{t('loading')}</p>
+                                </div>
+                            ) : (
+                                <table className="api-keys-table">
+                                    <thead>
                                         <tr>
-                                            <td colSpan="5" className="no-data">{t('noApiKeys')}</td>
+                                            <th>{t('apiKeyName')}</th>
+                                            <th>{t('apiKeyKey')}</th>
+                                            <th>{t('status')}</th>
+                                            <th>{t('apiKeyCreated')}</th>
+                                            <th>{t('actions')}</th>
                                         </tr>
-                                    )}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {apiKeys.length > 0 ? (
+                                            apiKeys.map((key) => (
+                                                <tr key={key.id}>
+                                                    <td>{key.name}</td>
+                                                    <td className="key-cell">
+                                                        <code>{key.token}</code>
+                                                        <button
+                                                            className="copy-icon-btn"
+                                                            onClick={() => handleCopy(key.token, key.id)}
+                                                            title={t('copyKey')}
+                                                        >
+                                                            {copyFeedback === key.id ? '✓' : '📋'}
+                                                        </button>
+                                                    </td>
+                                                    <td>
+                                                        <span
+                                                            className={`status-badge ${key.status === 'active' ? 'active' : 'inactive'}`}
+                                                            onClick={() => handleToggleStatus(key.id)}
+                                                            style={{ cursor: 'pointer' }}
+                                                            title={t('toggleStatus')}
+                                                        >
+                                                            {key.status === 'active' ? t('activeLabel') : t('inactiveLabel')}
+                                                        </span>
+                                                    </td>
+                                                    <td>{new Date(key.created_at).toLocaleDateString()}</td>
+                                                    <td className="actions-cell">
+                                                        <button
+                                                            className="action-icon-btn"
+                                                            onClick={() => setEditingKey({ id: key.id, name: key.name })}
+                                                            title={t('edit')}
+                                                        >
+                                                            <span className="icon">✎</span>
+                                                        </button>
+                                                        <button
+                                                            className="action-icon-btn delete"
+                                                            onClick={() => setConfirmDeleteId(key.id)}
+                                                            title={t('delete')}
+                                                        >
+                                                            <span className="icon">🗑️</span>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="5" className="no-data">{t('noApiKeys')}</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
 
-                        <button className="create-api-key-btn" onClick={() => setShowCreateForm(true)}>
-                            {t('createNewApiKey')}
-                        </button>
+                        {pagination.total_page > 1 && (
+                            <div className="pagination-controls" style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '20px', alignItems: 'center' }}>
+                                <button
+                                    className="p-btn"
+                                    disabled={pagination.current_page === 1}
+                                    onClick={() => loadApiKeys(pagination.current_page - 1)}
+                                >
+                                    {t('prevPage')}
+                                </button>
+                                <span className="p-info">
+                                    {t('pageOf').replace('{current}', pagination.current_page).replace('{total}', pagination.total_page)}
+                                </span>
+                                <button
+                                    className="p-btn"
+                                    disabled={pagination.current_page === pagination.total_page}
+                                    onClick={() => loadApiKeys(pagination.current_page + 1)}
+                                >
+                                    {t('nextPage')}
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="modal-footer-actions" style={{ marginTop: '20px' }}>
+                            <button className="create-api-key-btn" onClick={() => setShowCreateForm(true)}>
+                                {t('createNewApiKey')}
+                            </button>
+                        </div>
                     </>
                 )}
             </div>
-
-            {copyFeedback && typeof copyFeedback === 'string' && copyFeedback !== 'created' && (
-                <div className="toast-notification">
-                    {t('apiKeyCopied')}
-                </div>
-            )}
         </BaseModal>
     )
 }

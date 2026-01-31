@@ -115,7 +115,7 @@ function TranslationArea({ onFeedbackClick }) {
       }
     } catch (error) {
       console.error('Error accessing webcam:', error)
-      alert(t('cameraPermissionError') || 'Unable to access webcam. Please grant camera permissions.')
+      showToast(t('cameraPermissionError') || 'Unable to access webcam. Please grant camera permissions.', 'error')
     }
   }
 
@@ -132,7 +132,7 @@ function TranslationArea({ onFeedbackClick }) {
     // Initialize MediaPipe if not already done
     const success = await ensureInitialized()
     if (!success) {
-      alert(t('mediapipeInitError') || 'Failed to initialize MediaPipe. Please refresh and try again.')
+      showToast(t('mediapipeInitError') || 'Failed to initialize MediaPipe. Please refresh and try again.', 'error')
       return
     }
 
@@ -281,7 +281,7 @@ function TranslationArea({ onFeedbackClick }) {
       // Initialize MediaPipe if not already done
       const initialized = await ensureInitialized()
       if (!initialized) {
-        alert(t('mediapipeInitError') || 'Failed to initialize MediaPipe. Please refresh and try again.')
+        showToast(t('mediapipeInitError') || 'Failed to initialize MediaPipe. Please refresh and try again.', 'error')
         setIsProcessingUpload(false)
         return
       }
@@ -317,7 +317,7 @@ function TranslationArea({ onFeedbackClick }) {
         }
       }
     } else {
-      alert('Please select a valid video file')
+      showToast('Please select a valid video file', 'error')
     }
   }
 

@@ -7,7 +7,6 @@ function AddRoleModal({ onClose, onSave, initialData = null }) {
     const { t } = useLanguage()
     const [roleData, setRoleData] = useState({
         name: '',
-        description: '',
         permissions: [],
         ...initialData
     })
@@ -26,23 +25,24 @@ function AddRoleModal({ onClose, onSave, initialData = null }) {
         setSaving(true)
         setError(null)
         try {
+            const rolePayload = {
+                name: roleData.name
+            }
+
             if (initialData && (initialData._id || initialData.id)) {
                 // Update
-                const updatePayload = {
-                    id: initialData._id || initialData.id,
-                    ...roleData
-                }
-                await api.updateRole(updatePayload)
+                const roleId = initialData._id || initialData.id
+                await api.updateRole(roleId, rolePayload)
             } else {
                 // Create
-                await api.createRole(roleData)
+                await api.createRole(rolePayload)
             }
 
             onSave && onSave(roleData)
             onClose()
         } catch (err) {
             console.error('Failed to save role:', err)
-            setError(err.message || 'Failed to save role')
+            setError(err.message || t('packageError'))
         } finally {
             setSaving(false)
         }
@@ -52,42 +52,31 @@ function AddRoleModal({ onClose, onSave, initialData = null }) {
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content admin-config-modal" onClick={e => e.stopPropagation()}>
                 <div className="admin-modal-header">
-                    <h2>{initialData ? (t('editRole') || 'Edit Role') : (t('addRole') || 'Add Role')}</h2>
+                    <h2>{initialData ? t('editRole') : t('addRole')}</h2>
                     <button className="admin-close-button" onClick={onClose}>&times;</button>
                 </div>
 
                 <div className="admin-modal-body">
                     <div className="config-section">
                         <div className="form-group">
-                            <label>{t('roleName') || 'Role Name'}</label>
+                            <label>{t('roleName')}</label>
                             <input
                                 type="text"
                                 name="name"
                                 value={roleData.name}
                                 onChange={handleChange}
                                 className="modal-input"
-                                placeholder="e.g. Moderator"
+                                placeholder={t('moderatorExample')}
                             />
                         </div>
 
-                        <div className="form-group">
-                            <label>{t('roleDescription') || 'Description'}</label>
-                            <textarea
-                                name="description"
-                                value={roleData.description}
-                                onChange={handleChange}
-                                className="modal-input"
-                                rows="3"
-                                style={{ resize: 'vertical' }}
-                            />
-                        </div>
 
                         <div className="form-group">
-                            <label>{t('permissions') || 'Permissions'}</label>
+                            <label>{t('permissions')}</label>
                             <div style={{ padding: '10px', background: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                                 <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: 0 }}>
                                     {/* Placeholder for permissions checklist */}
-                                    Basic permissions selected by default.
+                                    {t('basicPermissionsDefault')}
                                 </p>
                             </div>
                         </div>
@@ -95,9 +84,9 @@ function AddRoleModal({ onClose, onSave, initialData = null }) {
                 </div>
 
                 <div className="modal-footer">
-                    <button className="cancel-btn" onClick={onClose}>{t('close') || 'Close'}</button>
+                    <button className="cancel-btn" onClick={onClose}>{t('close')}</button>
                     <button className="save-btn" onClick={handleSave} disabled={saving}>
-                        {saving ? (t('saving') || 'Saving...') : (initialData ? (t('updateRole') || 'Update Role') : (t('createRole') || 'Create Role'))}
+                        {saving ? t('saving') : (initialData ? t('updateRole') : t('createRole'))}
                     </button>
                     {error && <p style={{ color: 'red', marginTop: '10px', width: '100%', textAlign: 'center' }}>{error}</p>}
                 </div>

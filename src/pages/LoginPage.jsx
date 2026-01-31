@@ -7,6 +7,7 @@ import RegisterModal from '../components/common/RegisterModal'
 import SignUpModal from '../components/common/SignUpModal'
 import ForgotPasswordModal from '../components/common/ForgotPasswordModal'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useToast } from '../contexts/ToastContext'
 import ThemeToggle from '../components/user/ThemeToggle'
 import LanguageToggle from '../components/user/LanguageToggle'
 import LoadingSpinner from '../components/common/LoadingSpinner'
@@ -15,6 +16,7 @@ import './LoginPage.css'
 function LoginPage() {
     const { isLoggedIn, user, loading } = useAuth()
     const { t } = useLanguage()
+    const { showToast } = useToast()
     const navigate = useNavigate()
     const [view, setView] = useState('login') // 'login', 'register', 'otp', 'forgot'
     const [email, setEmail] = useState('')
@@ -22,9 +24,9 @@ function LoginPage() {
     useEffect(() => {
         if (isLoggedIn && !loading) {
             if (user?.role === 'user') {
-                navigate('/')
+                navigate(`/${window.location.search}`)
             } else {
-                navigate('/admin')
+                navigate(`/admin${window.location.search}`)
             }
         }
     }, [isLoggedIn, loading, user, navigate])
@@ -43,7 +45,7 @@ function LoginPage() {
 
 
     const handleVerifyOTP = (code, response) => {
-        alert(t('verificationSuccess'))
+        showToast(t('verificationSuccess'), 'success')
         setView('login')
     }
 

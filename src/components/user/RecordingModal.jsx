@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
+import { useToast } from '../../contexts/ToastContext'
 import './RecordingModal.css'
 
 function RecordingModal({ onClose, onRecordingComplete }) {
+  const { showToast } = useToast()
   const [isRecording, setIsRecording] = useState(false)
   const [recordingTime, setRecordingTime] = useState(0)
   const videoRef = useRef(null)
@@ -36,9 +38,9 @@ function RecordingModal({ onClose, onRecordingComplete }) {
 
   const startWebcam = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: true, 
-        audio: false 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false
       })
       streamRef.current = stream
       if (videoRef.current) {
@@ -46,7 +48,7 @@ function RecordingModal({ onClose, onRecordingComplete }) {
       }
     } catch (error) {
       console.error('Error accessing webcam:', error)
-      alert('Unable to access webcam. Please grant camera permissions.')
+      showToast('Unable to access webcam. Please grant camera permissions.', 'error')
       onClose()
     }
   }
@@ -99,13 +101,13 @@ function RecordingModal({ onClose, onRecordingComplete }) {
     <div className="recording-modal-overlay" onClick={onClose}>
       <div className="recording-modal-content" onClick={(e) => e.stopPropagation()}>
         <button className="recording-modal-close" onClick={onClose}>✕</button>
-        
+
         <h2 className="recording-modal-title">Record Sign Language</h2>
-        
+
         <div className="video-preview-container">
-          <video 
-            ref={videoRef} 
-            autoPlay 
+          <video
+            ref={videoRef}
+            autoPlay
             playsInline
             muted
             className="preview-video"

@@ -18,8 +18,15 @@ export const LanguageProvider = ({ children }) => {
         localStorage.setItem('appLanguage', lang);
     };
 
-    const t = (key) => {
-        return translations[language][key] || key;
+    const t = (key, params = {}) => {
+        let translation = translations[language][key] || key;
+
+        // Support for simple parameter replacement like {count}
+        Object.keys(params).forEach(param => {
+            translation = translation.replace(`{${param}}`, params[param]);
+        });
+
+        return translation;
     };
 
     return (

@@ -5,17 +5,17 @@ function ActivityLogsModal({ onClose }) {
     const { t } = useLanguage()
 
     const logs = [
-        { id: 1, action: t('actionLogin'), user: 'abebe@example.com', time: '2 mins ago', icon: '🔑' },
-        { id: 2, action: t('actionTranslation'), user: 'guest_user', time: '5 mins ago', icon: '🔤' },
-        { id: 3, action: t('actionBackup'), user: 'System', time: '1 hour ago', icon: '💾' },
-        { id: 4, action: t('actionFailedLogin'), user: 'unknown', time: '2 hours ago', icon: '⚠️' },
+        { id: 1, action: t('actionLogin'), user: 'abebe@example.com', time: t('timeAgoMinutes', { count: 2 }), icon: '🔑' },
+        { id: 2, action: t('actionTranslation'), user: 'guest_user', time: t('timeAgoMinutes', { count: 5 }), icon: '🔤' },
+        { id: 3, action: t('actionBackup'), user: t('systemUser'), time: t('timeAgoHours', { count: 1 }), icon: '💾' },
+        { id: 4, action: t('actionFailedLogin'), user: 'unknown', time: t('timeAgoHours', { count: 2 }), icon: '⚠️' },
     ]
 
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content admin-config-modal" onClick={e => e.stopPropagation()}>
                 <div className="admin-modal-header">
-                    <h2>{t('activityLogs') || 'Activity Logs'}</h2>
+                    <h2>{t('activityLogs')}</h2>
                     <button className="admin-close-button" onClick={onClose}>&times;</button>
                 </div>
 
@@ -45,7 +45,7 @@ function ActivityLogsModal({ onClose }) {
                 </div>
 
                 <div className="modal-footer">
-                    <button className="cancel-btn" onClick={onClose}>{t('close') || 'Close'}</button>
+                    <button className="cancel-btn" onClick={onClose}>{t('close')}</button>
                 </div>
             </div>
         </div>
