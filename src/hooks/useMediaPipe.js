@@ -127,14 +127,45 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
             }
         }
 
+        // Must have pose landmarks to be valid
         if (!results.poseLandmarks) return null;
 
-        return {
+        const payload = {
             pose_4d: pose_4d,
             face_3d: face_3d,
             lh_3d: lh_3d,
             rh_3d: rh_3d
         };
+
+        // Robust Validation from script
+        try {
+            const jsonStr = JSON.stringify(payload);
+            const parsed = JSON.parse(jsonStr);
+
+            const validateArray = (arr, name) => {
+                if (!Array.isArray(arr)) return false;
+                for (let i = 0; i < arr.length; i++) {
+                    if (Array.isArray(arr[i])) {
+                        for (let j = 0; j < arr[i].length; j++) {
+                            if (typeof arr[i][j] !== 'number' || isNaN(arr[i][j])) return false;
+                        }
+                    } else if (typeof arr[i] !== 'number' || isNaN(arr[i])) return false;
+                }
+                return true;
+            };
+
+            if (!validateArray(parsed.pose_4d, 'pose_4d') ||
+                !validateArray(parsed.face_3d, 'face_3d') ||
+                !validateArray(parsed.lh_3d, 'lh_3d') ||
+                !validateArray(parsed.rh_3d, 'rh_3d')) {
+                console.error('Payload validation failed');
+                return null;
+            }
+            return parsed;
+        } catch (err) {
+            console.error('Payload validation error:', err);
+            return null;
+        }
     }, [createZeroArray]);
 
     const onResults = useCallback((results) => {
@@ -163,6 +194,13 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
         canvasCtx.restore();
 
         pipelineRef.current.lastResults = results;
+
+        // Debug: Check if landmarks are being detected
+        if (!results.poseLandmarks && !results.faceLandmarks && !results.leftHandLandmarks && !results.rightHandLandmarks) {
+            if (now - uiStateRef.current.lastPredictionAtMs > 2000) {
+                console.warn('MediaPipe: No landmarks detected in the current frame.');
+            }
+        }
 
         const now = performance.now();
         if (sendWebSocketData) {
@@ -231,6 +269,7 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
         letterboxCtxRef.current.drawImage(video, 0, 0, iw, ih, dx, dy, nw, nh);
 
         try {
+            console.log('Sending frame to MediaPipe...');
             await holisticRef.current.send({ image: letterboxCanvasRef.current });
             updateFps();
         } catch (err) {
@@ -265,6 +304,7 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
 
             holistic.onResults(onResults);
             holisticRef.current = holistic;
+            console.log('MediaPipe Holistic initialized successfully');
             return true;
         } catch (err) {
             console.error('Error initializing MediaPipe:', err);
@@ -273,11 +313,37 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
     }, [onResults]);
 
     const startCamera = useCallback(async () => {
+        console.log('startCamera called');
         await initHolistic();
         isVideoModeRef.current = false;
-        if (cameraRef.current) await cameraRef.current.stop();
+
+        if (cameraRef.current) {
+            console.log('Stopping existing Camera instance');
+            await cameraRef.current.stop();
+            cameraRef.current = null;
+        }
 
         if (videoRef.current) {
+            // Check if there's already a stream (e.g. from UI components)
+            if (videoRef.current.srcObject) {
+                console.log('Video already has srcObject. Starting manual loop.');
+                setStatus('Camera active (UI stream)');
+
+                const frameLoop = async () => {
+                    if (isVideoModeRef.current) return;
+
+                    // If dimensions are not ready, don't stall, just try again next frame
+                    if (videoRef.current && videoRef.current.videoWidth > 0) {
+                        await processFrame();
+                    }
+
+                    videoLoopFrameIdRef.current = requestAnimationFrame(frameLoop);
+                };
+                videoLoopFrameIdRef.current = requestAnimationFrame(frameLoop);
+                return;
+            }
+
+            console.log('Initializing MediaPipe Camera helper...');
             const camera = new window.Camera(videoRef.current, {
                 onFrame: processFrame,
                 width: 640,
@@ -299,12 +365,16 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
                 } else {
                     videoLoopFrameIdRef.current = requestAnimationFrame(videoLoop);
                 }
+            } else {
+                isVideoPlayingRef.current = false;
+                videoLoopFrameIdRef.current = null;
             }
         });
     }, [processFrame, videoRef]);
 
     const startVideoFile = useCallback(async (file) => {
         if (!file) return;
+        console.log('startVideoFile called for:', file.name);
         await initHolistic();
         isVideoModeRef.current = true;
         isVideoPlayingRef.current = false;
@@ -315,17 +385,29 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
         }
 
         if (videoLoopFrameIdRef.current) {
+            if ('cancelVideoFrameCallback' in videoRef.current) {
+                // Not standard yet, but good for future proofing if we ever add IDs
+            }
             cancelAnimationFrame(videoLoopFrameIdRef.current);
             videoLoopFrameIdRef.current = null;
         }
 
         if (videoRef.current) {
+            console.log('Setting video source to blob URL');
             if (videoRef.current.src && videoRef.current.src.startsWith('blob:')) {
                 URL.revokeObjectURL(videoRef.current.src);
             }
-            videoRef.current.src = URL.createObjectURL(file);
+            const blobUrl = URL.createObjectURL(file);
+            videoRef.current.srcObject = null;
+            videoRef.current.src = blobUrl;
+            videoRef.current.loop = true;
+            videoRef.current.muted = true;
             videoRef.current.load();
-            setStatus('Video loaded');
+
+            videoRef.current.onloadedmetadata = () => {
+                console.log('Video metadata loaded');
+                setStatus('Video loaded');
+            };
         }
     }, [initHolistic, videoRef, setStatus]);
 
@@ -343,10 +425,22 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
     }, [videoLoop, videoRef, setStatus]);
 
     const pauseVideo = useCallback(() => {
-        if (!isVideoModeRef.current || !videoRef.current) return;
-        videoRef.current.pause();
-        isVideoPlayingRef.current = false;
-        setStatus('Video paused');
+        if (!isVideoModeRef.current) {
+            // In camera mode, stop the device to turn off light
+            if (cameraRef.current) {
+                cameraRef.current.stop();
+                cameraRef.current = null;
+            }
+            if (videoLoopFrameIdRef.current) {
+                cancelAnimationFrame(videoLoopFrameIdRef.current);
+                videoLoopFrameIdRef.current = null;
+            }
+            setStatus('Camera paused (Hardware OFF)');
+        } else {
+            if (videoRef.current) videoRef.current.pause();
+            isVideoPlayingRef.current = false;
+            setStatus('Video paused');
+        }
     }, [videoRef, setStatus]);
 
     const stopVideo = useCallback(() => {

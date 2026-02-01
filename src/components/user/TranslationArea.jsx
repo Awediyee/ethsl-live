@@ -94,6 +94,7 @@ function TranslationArea({ onFeedbackClick }) {
       setShowCamera(true)
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+        videoRef.current.play().catch(err => console.warn('Video play deferred:', err))
       }
     } catch (error) {
       console.error('Error accessing webcam:', error)
@@ -165,25 +166,6 @@ function TranslationArea({ onFeedbackClick }) {
     stopVideo()
   }
 
-  const pauseRecording = () => {
-    if (mediaRecorderRef.current && isRecording && !isPaused) {
-      mediaRecorderRef.current.pause()
-      setIsPaused(true)
-      pauseVideo()
-    }
-  }
-
-  const resumeRecording = () => {
-    if (mediaRecorderRef.current && isRecording && isPaused) {
-      mediaRecorderRef.current.resume()
-      setIsPaused(false)
-      if (recordedVideo) {
-        playVideo()
-      } else {
-        startCamera()
-      }
-    }
-  }
 
   const backToLiveRecording = () => {
     // Clear uploaded video state
@@ -275,24 +257,11 @@ function TranslationArea({ onFeedbackClick }) {
 
       // Wait for video to load metadata
       videoElement.onloadedmetadata = async () => {
-        // Display the video in the video ref
-        if (videoRef.current) {
-          videoRef.current.srcObject = null
-          videoRef.current.src = videoURL
-          videoRef.current.loop = true
-          videoRef.current.play()
-        }
-
-        // Start processing
-        await startVideoFile(file)
-        playVideo()
-
-        setIsProcessingUpload(false)
-        // Keep the video playing in loop for display
-        if (videoRef.current) {
-          videoRef.current.currentTime = 0
-          videoRef.current.play()
-        }
+        console.log('Uploaded video metadata loaded, starting MediaPipe processing');
+        // Start processing via hook
+        await startVideoFile(file);
+        playVideo();
+        setIsProcessingUpload(false);
       }
     } else {
       showToast(t('invalidVideoFile'), 'error')
@@ -469,8 +438,6 @@ function TranslationArea({ onFeedbackClick }) {
                 // Controls
                 onStartRecording={startRecording}
                 onStopRecording={stopRecording}
-                onPauseRecording={pauseRecording}
-                onResumeRecording={resumeRecording}
                 onBackToLive={backToLiveRecording}
                 onPauseUploadedVideo={pauseUploadedVideo}
                 onResumeUploadedVideo={resumeUploadedVideo}

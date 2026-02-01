@@ -15,8 +15,6 @@ function MediaPipeCamera({
     isUploadedVideoPaused,
     onStartRecording,
     onStopRecording,
-    onPauseRecording,
-    onResumeRecording,
     onBackToLive,
     onPauseUploadedVideo,
     onResumeUploadedVideo,
@@ -99,15 +97,6 @@ function MediaPipeCamera({
                             </div>
                         ) : (
                             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                                {!isPaused ? (
-                                    <button className="btn-secondary" onClick={onPauseRecording}>
-                                        <span>⏸</span> {t('pause')}
-                                    </button>
-                                ) : (
-                                    <button className="btn-primary" onClick={onResumeRecording}>
-                                        <span>▶</span> {t('resume')}
-                                    </button>
-                                )}
                                 <button className="btn-secondary" onClick={onStopRecording}>
                                     <span className="stop-icon">■</span> {t('stop')}
                                 </button>
