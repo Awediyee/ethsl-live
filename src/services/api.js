@@ -1,42 +1,44 @@
 // Use proxy in development, direct URL in production
-const API_BASE_URL = import.meta.env.DEV
+const IS_DEV = import.meta.env.DEV
+const API_BASE_URL = IS_DEV
   ? '/api/v1' // Use Vite proxy in development
   : 'https://rest-api-backend-87oc.onrender.com/api/v1' // Direct URL in production
+
+console.log('🌐 ApiService initialized:', {
+  environment: IS_DEV ? 'DEVELOPMENT' : 'PRODUCTION',
+  baseUrl: API_BASE_URL,
+  origin: window.location.origin
+})
 
 class ApiService {
   constructor() {
     this.authToken = null
     this.interceptors = []
-    this.requestTimeout = 10000 // 10 seconds default timeout
-    this.cache = new Map() // Simple cache for GET requests
-    this.cacheDuration = 60000 // Cache for 1 minute
+    this.requestTimeout = 10000
+    this.cache = new Map()
+    this.cacheDuration = 60000
   }
 
-  // Set authentication token
   setAuthToken(token) {
     this.authToken = token
     console.log('Auth token set:', token ? 'Yes' : 'No')
   }
 
-  // Clear authentication token
   clearAuthToken() {
     this.authToken = null
     console.log('Auth token cleared')
   }
 
-  // Add request/response interceptor
   addInterceptor(interceptor) {
     this.interceptors.push(interceptor)
     console.log('Interceptor added:', interceptor.name || 'anonymous')
   }
 
-  // Clear all interceptors
   clearInterceptors() {
     this.interceptors = []
     console.log('All interceptors cleared')
   }
 
-  // Set request timeout
   setTimeout(timeoutMs) {
     this.requestTimeout = timeoutMs
     console.log('Request timeout set to:', timeoutMs, 'ms')
@@ -198,9 +200,10 @@ class ApiService {
 
       if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
         // This is likely a CORS error
-        const corsError = new Error('CORS error: The server may not allow requests from this domain. Please check server CORS configuration.')
+        const corsError = new Error(`CORS error: The server may not allow requests from this domain (${window.location.origin}) to ${url}. Please check server CORS configuration.`)
         corsError.name = 'CORSError'
         corsError.url = url
+        corsError.method = interceptedConfig.method
         corsError.originalError = error
         throw corsError
       }
@@ -251,13 +254,11 @@ class ApiService {
     throw lastError
   }
 
-  // Clear cache
   clearCache() {
     this.cache.clear()
     console.log('API cache cleared')
   }
 
-  // Clear cache for specific endpoint
   clearCacheForEndpoint(endpoint, method = 'GET') {
     const url = `${API_BASE_URL}${endpoint}`
     for (const [key] of this.cache) {
@@ -440,7 +441,6 @@ class ApiService {
     }
   }
 
-  // Finalize account verification (used by Admin)
   async verifyAccount(payload) {
     console.log('🛡️ Verifying account creation:', payload)
     return this.makeRequest('/accounts/verify', {
@@ -580,7 +580,7 @@ class ApiService {
   // Role Management
   async getRoles() {
     console.log('🛡️ Fetching roles')
-    return this.makeRequest('/roles', {
+    return this.makeRequestWithRetry('/roles', {
       method: 'GET',
       requireAuth: true,
     })
@@ -597,9 +597,12 @@ class ApiService {
 
   async updateRole(roleId, roleData) {
     console.log(`🛡️ Updating role ${roleId}:`, roleData)
-    return this.makeRequest(`/roles/${roleId}`, {
+    return this.makeRequest('/roles', {
       method: 'PATCH',
-      body: JSON.stringify(roleData),
+      body: JSON.stringify({
+        ...roleData,
+        role_id: roleId
+      }),
       requireAuth: true,
     })
   }
@@ -659,118 +662,7 @@ class ApiService {
     })
   }
 
-  // Test CORS specifically
-  async testCORS() {
-    console.log('🌐 Testing CORS configuration...')
-
-    try {
-      // Try a simple POST request to the register endpoint
-      const response = await fetch(`${API_BASE_URL}/accounts/register`, {
-        method: 'POST',
-        mode: 'cors',
-        credentials: 'omit',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          email: 'cors-test@example.com',
-          password: 'test123'
-        })
-      })
-
-      console.log('CORS test response:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries())
-      })
-
-      return {
-        success: true,
-        status: response.status,
-        message: `CORS is working. Server responded with ${response.status}`
-      }
-
-    } catch (error) {
-      console.error('CORS test failed:', error)
-
-      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-        return {
-          success: false,
-          error: 'CORS_BLOCKED',
-          message: 'CORS is blocking the request. The server needs to allow requests from this domain.'
-        }
-      }
-
-      return {
-        success: false,
-        error: error.name,
-        message: error.message
-      }
-    }
-  }
-
-  // Test connection to the API (with multiple endpoint fallbacks)
-  async testConnection() {
-    const healthEndpoints = [
-      '/accounts/register', // Test the actual endpoint we know exists
-      '/health',
-      '/',
-      '/status',
-      '/ping'
-    ]
-
-    console.log('🔍 Testing API connection to:', API_BASE_URL)
-    console.log('🔍 Development mode:', import.meta.env.DEV ? 'Using Vite proxy' : 'Direct connection')
-
-    for (const endpoint of healthEndpoints) {
-      try {
-        console.log(`Testing API connection at: ${endpoint}`)
-
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10s timeout
-
-        // Use OPTIONS request to test CORS without triggering actual endpoint logic
-        const method = endpoint === '/accounts/register' ? 'OPTIONS' : 'GET'
-
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-          method,
-          mode: 'cors',
-          credentials: 'omit',
-          signal: controller.signal,
-          headers: {
-            'Accept': 'application/json, text/plain, */*',
-            'Cache-Control': 'no-cache'
-            // No need for Origin header when using proxy
-          }
-        })
-
-        clearTimeout(timeoutId)
-
-        console.log(`API ${endpoint} response:`, {
-          status: response.status,
-          statusText: response.statusText,
-          headers: Object.fromEntries(response.headers.entries())
-        })
-
-        // Consider any response under 500 as accessible
-        // 405 Method Not Allowed is actually good - means endpoint exists
-        if (response.status < 500) {
-          console.log(`✅ API is accessible via: ${endpoint} (${response.status})`)
-          return { success: true, endpoint, status: response.status }
-        }
-      } catch (error) {
-        console.log(`Endpoint ${endpoint} failed:`, {
-          name: error.name,
-          message: error.message
-        })
-        continue
-      }
-    }
-
-    console.error('❌ All API health checks failed')
-    return { success: false, error: 'All endpoints failed' }
-  }
+  // --- Subscriptions ---
 
   // Subscription Packages
   async getSubscriptionPackages() {

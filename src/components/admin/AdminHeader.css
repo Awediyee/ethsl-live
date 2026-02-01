@@ -1,0 +1,138 @@
+.admin-header-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 30px;
+    height: 70px;
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 3px var(--shadow-color);
+}
+
+.admin-header-left {
+    display: flex;
+    align-items: center;
+}
+
+.admin-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.admin-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    object-fit: cover;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.admin-name-container {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.admin-app-name {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+.admin-badge {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    letter-spacing: 0.05em;
+    background: rgba(var(--primary-color-rgb, 74, 144, 226), 0.1);
+    padding: 2px 6px;
+    border-radius: 6px;
+    width: fit-content;
+    border: 1px solid rgba(var(--primary-color-rgb, 74, 144, 226), 0.2);
+}
+
+.admin-header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-right: 20px;
+    border-right: 1px solid var(--border-color);
+}
+
+.admin-profile-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.admin-user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.admin-user-name {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.admin-user-role {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    opacity: 0.8;
+    font-weight: 500;
+}
+
+.admin-logout-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.admin-logout-btn:hover {
+    background-color: #ef444410;
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+@media (max-width: 768px) {
+    .admin-header-nav {
+        padding: 0 15px;
+    }
+
+    .admin-app-name {
+        font-size: 1rem;
+    }
+
+    .admin-user-info {
+        display: none;
+    }
+
+    .header-controls {
+        padding-right: 10px;
+        gap: 4px;
+    }
+}

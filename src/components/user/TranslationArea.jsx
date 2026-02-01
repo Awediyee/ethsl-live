@@ -26,7 +26,6 @@ function TranslationArea({ onFeedbackClick }) {
   const [isUploadedVideoMode, setIsUploadedVideoMode] = useState(false)
   const [isUploadedVideoPaused, setIsUploadedVideoPaused] = useState(false)
 
-  // Refs
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const mediaRecorderRef = useRef(null)
@@ -36,26 +35,9 @@ function TranslationArea({ onFeedbackClick }) {
   const timerRef = useRef(null)
   const uploadedVideoRef = useRef(null)
 
-  // Sign Language Manager Hook
   const {
-    state: {
-      wsUrl,
-      setWsUrl,
-      wsConnected,
-      setWsConnected,
-      connectionStatus,
-      mediaPipeInitialized,
-      fps,
-      currentPrediction
-    },
-    actions: {
-      handleConnect,
-      handleDisconnect,
-      ensureInitialized,
-      startProcessing,
-      stopProcessing,
-      processVideoFile
-    }
+    state: { wsUrl, setWsUrl, wsConnected, setWsConnected, connectionStatus, mediaPipeInitialized, fps, currentPrediction },
+    actions: { handleConnect, handleDisconnect, ensureInitialized, startCamera, startVideoFile, playVideo, pauseVideo, stopVideo, restartVideo }
   } = useSignLanguageManager(videoRef, canvasRef, setTranslation)
 
   // Cleanup on unmount
@@ -115,7 +97,7 @@ function TranslationArea({ onFeedbackClick }) {
       }
     } catch (error) {
       console.error('Error accessing webcam:', error)
-      showToast(t('cameraPermissionError') || 'Unable to access webcam. Please grant camera permissions.', 'error')
+      showToast(t('cameraPermissionError'), 'error')
     }
   }
 
@@ -132,7 +114,7 @@ function TranslationArea({ onFeedbackClick }) {
     // Initialize MediaPipe if not already done
     const success = await ensureInitialized()
     if (!success) {
-      showToast(t('mediapipeInitError') || 'Failed to initialize MediaPipe. Please refresh and try again.', 'error')
+      showToast(t('mediapipeInitError'), 'error')
       return
     }
 
@@ -149,7 +131,7 @@ function TranslationArea({ onFeedbackClick }) {
     mediaRecorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: 'video/webm' })
       setRecordedVideo(blob)
-      stopProcessing()
+      stopVideo()
     }
 
     mediaRecorder.start()
@@ -158,7 +140,7 @@ function TranslationArea({ onFeedbackClick }) {
     setTranslation('')
 
     // Start MediaPipe processing
-    startProcessing()
+    startCamera()
   }
 
   const stopRecording = () => {
@@ -166,7 +148,7 @@ function TranslationArea({ onFeedbackClick }) {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
       setIsPaused(false)
-      stopProcessing()
+      stopVideo()
     }
 
     // Close camera and return to initial state
@@ -180,14 +162,14 @@ function TranslationArea({ onFeedbackClick }) {
     stopWebcam()
     setShowCamera(false)
     setRecordedVideo(null)
-    stopProcessing()
+    stopVideo()
   }
 
   const pauseRecording = () => {
     if (mediaRecorderRef.current && isRecording && !isPaused) {
       mediaRecorderRef.current.pause()
       setIsPaused(true)
-      stopProcessing()
+      pauseVideo()
     }
   }
 
@@ -195,7 +177,11 @@ function TranslationArea({ onFeedbackClick }) {
     if (mediaRecorderRef.current && isRecording && isPaused) {
       mediaRecorderRef.current.resume()
       setIsPaused(false)
-      startProcessing()
+      if (recordedVideo) {
+        playVideo()
+      } else {
+        startCamera()
+      }
     }
   }
 
@@ -216,14 +202,14 @@ function TranslationArea({ onFeedbackClick }) {
     }
 
     // Stop processing
-    stopProcessing()
+    stopVideo()
   }
 
   const pauseUploadedVideo = () => {
     if (videoRef.current && isUploadedVideoMode) {
       videoRef.current.pause()
       setIsUploadedVideoPaused(true)
-      stopProcessing()
+      pauseVideo()
     }
   }
 
@@ -231,7 +217,7 @@ function TranslationArea({ onFeedbackClick }) {
     if (videoRef.current && isUploadedVideoMode) {
       videoRef.current.play()
       setIsUploadedVideoPaused(false)
-      startProcessing()
+      playVideo()
     }
   }
 
@@ -248,18 +234,12 @@ function TranslationArea({ onFeedbackClick }) {
     setIsUploadedVideoPaused(false)
     setShowCamera(false)
     setTranslation('')
-    stopProcessing()
+    stopVideo()
   }
 
-  // WebSocket Handlers Wrapper
-  const onConnect = () => {
-    handleConnect()
-  }
 
   const handlePlusClick = async () => {
     await startWebcam()
-    // Don't auto-start recording - let user decide
-    // This allows them to close webcam if they don't want to record
   }
 
   const handleVideoUpload = () => {
@@ -281,7 +261,7 @@ function TranslationArea({ onFeedbackClick }) {
       // Initialize MediaPipe if not already done
       const initialized = await ensureInitialized()
       if (!initialized) {
-        showToast(t('mediapipeInitError') || 'Failed to initialize MediaPipe. Please refresh and try again.', 'error')
+        showToast(t('mediapipeInitError'), 'error')
         setIsProcessingUpload(false)
         return
       }
@@ -304,10 +284,8 @@ function TranslationArea({ onFeedbackClick }) {
         }
 
         // Start processing
-        startProcessing()
-        await processVideoFile(videoElement, (progress) => {
-          setUploadProgress(progress)
-        })
+        await startVideoFile(file)
+        playVideo()
 
         setIsProcessingUpload(false)
         // Keep the video playing in loop for display
@@ -317,7 +295,7 @@ function TranslationArea({ onFeedbackClick }) {
         }
       }
     } else {
-      showToast('Please select a valid video file', 'error')
+      showToast(t('invalidVideoFile'), 'error')
     }
   }
 
@@ -540,7 +518,7 @@ function TranslationArea({ onFeedbackClick }) {
                 <button
                   className="speaker-button"
                   onClick={speakText}
-                  title="Listen to translation"
+                  title={t('listenTranslation')}
                 >
                   <svg
                     className={`speaker-icon ${isSpeaking ? 'speaking' : ''}`}
@@ -570,7 +548,7 @@ function TranslationArea({ onFeedbackClick }) {
         <div style={{ marginTop: '20px', textAlign: 'center' }}>
           <LoadingSpinner />
           <p style={{ color: 'var(--text-secondary)', marginTop: '10px' }}>
-            Processing video... {uploadProgress.toFixed(0)}%
+            {t('processingVideo')} {uploadProgress.toFixed(0)}%
           </p>
         </div>
       )}

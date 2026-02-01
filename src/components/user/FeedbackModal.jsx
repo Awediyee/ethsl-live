@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLanguage } from '../../contexts/LanguageContext'
 import BaseModal from '../common/BaseModal'
+import SecurityUtils from '../../utils/security'
 
 function FeedbackModal({ onClose, onSubmit, userEmail }) {
   const { t } = useLanguage()
@@ -9,7 +10,8 @@ function FeedbackModal({ onClose, onSubmit, userEmail }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSubmit(feedback, rating)
+    const sanitizedFeedback = SecurityUtils.sanitizeInput(feedback)
+    onSubmit(sanitizedFeedback, rating)
   }
 
   return (

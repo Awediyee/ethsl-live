@@ -18,6 +18,7 @@ function ManageRolesModal({ onClose, onEditRole, onAddRole }) {
     const [confirmDeleteRole, setConfirmDeleteRole] = useState(null)
     const [permissionsRole, setPermissionsRole] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [deleting, setDeleting] = useState(false)
     const [error, setError] = useState(null)
 
     const fetchRoles = async () => {
@@ -67,15 +68,20 @@ function ManageRolesModal({ onClose, onEditRole, onAddRole }) {
         if (!confirmDeleteRole) return
 
         const roleId = confirmDeleteRole.id
-        setConfirmDeleteRole(null) // Close modal immediately for better UX
+        setDeleting(true)
 
         try {
             await ApiService.deleteRole(roleId)
+            showToast(t('roleDeleted') || 'Role deleted successfully', 'success')
             // Refresh list
             fetchRoles()
+            setConfirmDeleteRole(null)
         } catch (err) {
             console.error('Failed to delete role:', err)
-            showToast('Failed to delete role: ' + (err.message || 'Unknown error'), 'error')
+            showToast(t('failedToDeleteRole') || 'Failed to delete role: ' + (err.message || 'Unknown error'), 'error')
+            setConfirmDeleteRole(null)
+        } finally {
+            setDeleting(false)
         }
     }
 
@@ -192,6 +198,7 @@ function ManageRolesModal({ onClose, onEditRole, onAddRole }) {
                     onCancel={() => setConfirmDeleteRole(null)}
                     confirmText={t('delete')}
                     type="danger"
+                    isLoading={deleting}
                 />
             )}
 

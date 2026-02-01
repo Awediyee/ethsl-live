@@ -3,6 +3,7 @@ import BaseModal from './BaseModal'
 import LoadingSpinner from './LoadingSpinner'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useAuth } from '../../contexts/AuthContext'
+import SecurityUtils from '../../utils/security'
 
 function RegisterModal({ onClose, onRegister }) {
   const { t } = useLanguage()
@@ -20,7 +21,7 @@ function RegisterModal({ onClose, onRegister }) {
 
     if (!email) {
       newErrors.email = t('emailRequired')
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
+    } else if (!SecurityUtils.isValidEmail(email)) {
       newErrors.email = t('validEmail')
     }
 
@@ -48,8 +49,9 @@ function RegisterModal({ onClose, onRegister }) {
     setErrors({})
 
     try {
-      const response = await auth.register(email, password)
-      if (onRegister) onRegister(email, password, response)
+      const sanitizedEmail = SecurityUtils.sanitizeInput(email)
+      const response = await auth.register(sanitizedEmail, password)
+      if (onRegister) onRegister(sanitizedEmail, password, response)
     } catch (error) {
       console.error('Registration failed:', error)
       setErrors({ general: error.data?.message || error.message || t('registrationFailed') })

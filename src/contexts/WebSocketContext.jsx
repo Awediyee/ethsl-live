@@ -13,7 +13,7 @@ export function useWebSocket() {
 }
 
 export function WebSocketProvider({ children }) {
-    const [wsUrl, setWsUrl] = useState(localStorage.getItem('websocket_url') || 'ws://localhost:8000');
+    const [wsUrl, setWsUrl] = useState(import.meta.env.VITE_WS_URL || '');
     const [wsConnected, setWsConnected] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState('Disconnected');
     const { showToast } = useToast();
@@ -89,17 +89,6 @@ export function WebSocketProvider({ children }) {
         onMessageCallbacks.current.add(callback);
         return () => onMessageCallbacks.current.delete(callback);
     }, []);
-
-    // Connect on mount or when login status becomes true
-    useEffect(() => {
-        if (isLoggedIn) {
-            // Delay to ensure auth and toast systems are settled
-            const timer = setTimeout(() => {
-                connect();
-            }, 800);
-            return () => clearTimeout(timer);
-        }
-    }, [isLoggedIn, connect]);
 
     // Update localStorage when wsUrl changes
     useEffect(() => {

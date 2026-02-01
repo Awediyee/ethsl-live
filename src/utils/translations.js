@@ -109,6 +109,10 @@ export const translations = {
         notConnected: "Not Connected",
         cameraPermissionError: "Unable to access webcam. Please grant camera permissions.",
         mediapipeInitError: "Failed to initialize MediaPipe. Please refresh and try again.",
+        processingVideo: "Processing video...",
+        invalidVideoFile: "Please select a valid video file",
+        listenTranslation: "Listen to translation",
+        systemLoading: "System is loading...",
 
         // Translation Area
         signLanguage: "Sign Language",
@@ -226,7 +230,10 @@ export const translations = {
         passwordMismatch: "New passwords do not match",
         passwordChangeSuccess: "Password changed successfully",
         passwordChangeError: "Failed to change password",
+        samePasswordError: "New password must be different from current password",
         sessionExpired: "Session expired, please login again",
+        apiAccessDenied: "API access is available for Pro plans only. Please upgrade to continue.",
+        upgradeToPro: "Upgrade to Pro",
         noChanges: "No changes to save",
         fullCodeRequired: "Please enter the full 6-digit code",
         fillAllFields: "Please enter both email and password",
@@ -528,6 +535,10 @@ export const translations = {
         notConnected: "አልተገናኘም",
         cameraPermissionError: "ዌብካም ማግኘት አልተቻለም። እባክዎ የካሜራ ፈቃድ ይስጡ።",
         mediapipeInitError: "MediaPipe መጀመር አልተቻለም። እባክዎ ገጹን አድሰው እንደገና ይሞክሩ።",
+        processingVideo: "ቪዲዮ በመስራት ላይ...",
+        invalidVideoFile: "እባክዎ ትክክለኛ የቪዲዮ ፋይል ይምረጡ",
+        listenTranslation: "ትርጉሙን ያዳምጡ",
+        systemLoading: "ስርዓቱ በመጫን ላይ ነው...",
 
         // Translation Area
         signLanguage: "የምልክት ቋንቋ",
@@ -647,7 +658,10 @@ export const translations = {
         passwordMismatch: "አዲሱ የይለፍ ቃሎች አይዛመዱም",
         passwordChangeSuccess: "የይለፍ ቃል በተሳካ ሁኔታ ተቀይሯል",
         passwordChangeError: "የይለፍ ቃል መቀየር አልተሳካም",
+        samePasswordError: "አዲሱ የይለፍ ቃል ከአሁኑ ጋር መለየት አለበት",
         sessionExpired: "ቆይታዎ አልቋል፣ እባክዎ እንደገና ይግቡ",
+        apiAccessDenied: "የኤፒአይ መዳረሻ ለፕሮ ዕቅዶች ብቻ ይገኛል። ለመቀጠል እባክዎ ያሻሽሉ።",
+        upgradeToPro: "ወደ ፕሮ ያሻሽሉ",
         noChanges: "የተለወጠ ነገር የለም",
         fullCodeRequired: "እባክዎ ሙሉውን ባለ 6 አሃዝ ኮድ ያስገቡ",
         fillAllFields: "እባክዎ ኢሜይል እና የይለፍ ቃል ያስገቡ",

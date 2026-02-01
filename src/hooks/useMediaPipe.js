@@ -16,6 +16,24 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
     const frameCountRef = useRef(0);
     const lastFpsTimeRef = useRef(0);
     const isProcessingRef = useRef(false);
+    const videoLoopFrameIdRef = useRef(null);
+    const isVideoModeRef = useRef(false);
+    const isVideoPlayingRef = useRef(false);
+
+    const pipelineRef = useRef({
+        isProcessingFrame: false,
+        awaitingServer: false,
+        awaitingServerDeadlineMs: 0,
+        awaitingServerTimeoutMs: 250,
+        maxSendFps: 15,
+        lastSendMs: 0,
+        lastResults: null,
+    });
+
+    const uiStateRef = useRef({
+        lastStatusText: '',
+        lastPredictionAtMs: 0,
+    });
 
     // Initialize letterbox canvas
     useEffect(() => {
@@ -26,7 +44,32 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
         letterboxCtxRef.current = letterboxCanvas.getContext('2d');
     }, []);
 
-    // Create zero array helper
+    const setStatus = useCallback((text) => {
+        if (text === uiStateRef.current.lastStatusText) return;
+        uiStateRef.current.lastStatusText = text;
+        if (onStatusUpdate) {
+            onStatusUpdate({ statusText: text });
+        }
+    }, [onStatusUpdate]);
+
+    const updateFps = useCallback(() => {
+        frameCountRef.current++;
+        const now = performance.now();
+        if (now - lastFpsTimeRef.current >= 1000) {
+            const fps = frameCountRef.current;
+            frameCountRef.current = 0;
+            lastFpsTimeRef.current = now;
+            if (onStatusUpdate) {
+                onStatusUpdate({ fps });
+            }
+        }
+    }, [onStatusUpdate]);
+
+    const toNumber = (value, defaultValue = 0.0) => {
+        const num = typeof value === 'number' ? value : parseFloat(value);
+        return isNaN(num) ? defaultValue : num;
+    };
+
     const createZeroArray = useCallback((rows, cols) => {
         const arr = [];
         for (let i = 0; i < rows; i++) {
@@ -35,64 +78,56 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
         return arr;
     }, []);
 
-    // Build payload from MediaPipe results
     const buildPayload = useCallback((results) => {
         let pose_4d = createZeroArray(15, 4);
         let face_3d = createZeroArray(25, 3);
         let lh_3d = createZeroArray(21, 3);
         let rh_3d = createZeroArray(21, 3);
 
-        // Fill Pose
-        if (results.poseLandmarks) {
+        if (results.poseLandmarks && Array.isArray(results.poseLandmarks)) {
             const fullPose = results.poseLandmarks;
             for (let i = 0; i < SELECTED_POSE.length; i++) {
                 const idx = SELECTED_POSE[i];
                 if (fullPose[idx]) {
                     pose_4d[i] = [
-                        fullPose[idx].x,
-                        fullPose[idx].y,
-                        fullPose[idx].z,
-                        fullPose[idx].visibility !== undefined ? fullPose[idx].visibility : 0.0
+                        toNumber(fullPose[idx].x),
+                        toNumber(fullPose[idx].y),
+                        toNumber(fullPose[idx].z),
+                        toNumber(fullPose[idx].visibility, 0.0)
                     ];
                 }
             }
         }
 
-        // Fill Face
-        if (results.faceLandmarks) {
+        if (results.faceLandmarks && Array.isArray(results.faceLandmarks)) {
             const fullFace = results.faceLandmarks;
             for (let i = 0; i < SELECTED_FACE.length; i++) {
                 const idx = SELECTED_FACE[i];
                 if (fullFace[idx]) {
                     face_3d[i] = [
-                        fullFace[idx].x,
-                        fullFace[idx].y,
-                        fullFace[idx].z
+                        toNumber(fullFace[idx].x),
+                        toNumber(fullFace[idx].y),
+                        toNumber(fullFace[idx].z)
                     ];
                 }
             }
         }
 
-        // Fill Left Hand
-        if (results.leftHandLandmarks) {
+        if (results.leftHandLandmarks && Array.isArray(results.leftHandLandmarks)) {
             for (let i = 0; i < results.leftHandLandmarks.length; i++) {
                 const lm = results.leftHandLandmarks[i];
-                lh_3d[i] = [lm.x, lm.y, lm.z];
+                if (lm) lh_3d[i] = [toNumber(lm.x), toNumber(lm.y), toNumber(lm.z)];
             }
         }
 
-        // Fill Right Hand
-        if (results.rightHandLandmarks) {
+        if (results.rightHandLandmarks && Array.isArray(results.rightHandLandmarks)) {
             for (let i = 0; i < results.rightHandLandmarks.length; i++) {
                 const lm = results.rightHandLandmarks[i];
-                rh_3d[i] = [lm.x, lm.y, lm.z];
+                if (lm) rh_3d[i] = [toNumber(lm.x), toNumber(lm.y), toNumber(lm.z)];
             }
         }
 
-        // Check if pose is detected
-        if (!results.poseLandmarks) {
-            return null;
-        }
+        if (!results.poseLandmarks) return null;
 
         return {
             pose_4d: pose_4d,
@@ -102,7 +137,6 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
         };
     }, [createZeroArray]);
 
-    // Handle MediaPipe results
     const onResults = useCallback((results) => {
         if (!canvasRef.current) return;
 
@@ -111,7 +145,6 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
         canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
         canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
 
-        // Draw landmarks using MediaPipe drawing utils (if available)
         if (window.drawConnectors && window.drawLandmarks) {
             if (results.poseLandmarks) {
                 window.drawConnectors(canvasCtx, results.poseLandmarks, window.POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
@@ -129,40 +162,95 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
         }
         canvasCtx.restore();
 
-        // Send to WebSocket if provided
+        pipelineRef.current.lastResults = results;
+
+        const now = performance.now();
         if (sendWebSocketData) {
+            // Handl backpressure and throttling
+            if (pipelineRef.current.awaitingServer) {
+                if (pipelineRef.current.awaitingServerDeadlineMs && now > pipelineRef.current.awaitingServerDeadlineMs) {
+                    pipelineRef.current.awaitingServer = false;
+                    pipelineRef.current.awaitingServerDeadlineMs = 0;
+                } else {
+                    if (now - uiStateRef.current.lastPredictionAtMs > 500) {
+                        setStatus('Waiting for server...');
+                    }
+                    return;
+                }
+            }
+
+            const minIntervalMs = pipelineRef.current.maxSendFps ? (1000 / pipelineRef.current.maxSendFps) : 0;
+            if (minIntervalMs > 0 && (now - pipelineRef.current.lastSendMs) < minIntervalMs) {
+                return;
+            }
+
             const payload = buildPayload(results);
             if (payload) {
-                sendWebSocketData(payload);
+                try {
+                    sendWebSocketData(payload);
+                    pipelineRef.current.lastSendMs = now;
+                    pipelineRef.current.awaitingServer = true;
+                    pipelineRef.current.awaitingServerDeadlineMs = now + pipelineRef.current.awaitingServerTimeoutMs;
+                } catch (err) {
+                    console.error('WebSocket send failed:', err);
+                    setStatus('Send failed: ' + (err?.message || String(err)));
+                }
+            } else if (now - uiStateRef.current.lastPredictionAtMs > 500) {
+                setStatus('No pose detected (not sending)');
             }
         }
+    }, [canvasRef, buildPayload, setStatus, sendWebSocketData]);
 
-        // Update FPS
-        frameCountRef.current++;
-        const now = performance.now();
-        if (now - lastFpsTimeRef.current >= 1000) {
-            const fps = frameCountRef.current;
-            frameCountRef.current = 0;
-            lastFpsTimeRef.current = now;
-            if (onStatusUpdate) {
-                onStatusUpdate({ fps });
-            }
+    const processFrame = useCallback(async () => {
+        if (pipelineRef.current.isProcessingFrame) return;
+        pipelineRef.current.isProcessingFrame = true;
+
+        if (!holisticRef.current) {
+            pipelineRef.current.isProcessingFrame = false;
+            return;
         }
-    }, [canvasRef, buildPayload, onStatusUpdate]);
 
-    // Initialize MediaPipe
-    const initializeMediaPipe = useCallback(async () => {
-        if (!window.Holistic || !window.Camera) {
-            console.error('MediaPipe libraries not loaded');
+        const video = videoRef.current;
+        if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+            pipelineRef.current.isProcessingFrame = false;
+            return;
+        }
+
+        const iw = video.videoWidth;
+        const ih = video.videoHeight;
+        const w = VIDEO_SIZE;
+        const h = VIDEO_SIZE;
+        const scale = Math.min(w / iw, h / ih);
+        const nw = Math.floor(iw * scale);
+        const nh = Math.floor(ih * scale);
+        const dx = Math.floor((w - nw) / 2);
+        const dy = Math.floor((h - nh) / 2);
+
+        letterboxCtxRef.current.fillStyle = '#808080';
+        letterboxCtxRef.current.fillRect(0, 0, w, h);
+        letterboxCtxRef.current.drawImage(video, 0, 0, iw, ih, dx, dy, nw, nh);
+
+        try {
+            await holisticRef.current.send({ image: letterboxCanvasRef.current });
+            updateFps();
+        } catch (err) {
+            console.error('MediaPipe holistic.send failed:', err);
+            setStatus('MediaPipe error: ' + (err?.message || String(err)));
+        } finally {
+            pipelineRef.current.isProcessingFrame = false;
+        }
+    }, [videoRef, updateFps, setStatus]);
+
+    const initHolistic = useCallback(async () => {
+        if (holisticRef.current) return true;
+        if (!window.Holistic) {
+            console.error('MediaPipe Holistic not loaded');
             return false;
         }
 
         try {
-            // Initialize Holistic
             const holistic = new window.Holistic({
-                locateFile: (file) => {
-                    return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
-                }
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`
             });
 
             holistic.setOptions({
@@ -177,127 +265,105 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
 
             holistic.onResults(onResults);
             holisticRef.current = holistic;
-
-            // Initialize Camera
-            if (videoRef.current) {
-                const camera = new window.Camera(videoRef.current, {
-                    onFrame: async () => {
-                        if (!isProcessingRef.current || !videoRef.current || !letterboxCanvasRef.current) return;
-
-                        const iw = videoRef.current.videoWidth;
-                        const ih = videoRef.current.videoHeight;
-
-                        if (iw === 0 || ih === 0) return;
-
-                        const w = VIDEO_SIZE;
-                        const h = VIDEO_SIZE;
-                        const scale = Math.min(w / iw, h / ih);
-                        const nw = Math.floor(iw * scale);
-                        const nh = Math.floor(ih * scale);
-                        const dx = Math.floor((w - nw) / 2);
-                        const dy = Math.floor((h - nh) / 2);
-
-                        // Fill with gray 128
-                        letterboxCtxRef.current.fillStyle = '#808080';
-                        letterboxCtxRef.current.fillRect(0, 0, w, h);
-
-                        // Draw resized video
-                        letterboxCtxRef.current.drawImage(videoRef.current, 0, 0, iw, ih, dx, dy, nw, nh);
-
-                        // Send to MediaPipe
-                        await holistic.send({ image: letterboxCanvasRef.current });
-                    },
-                    width: 640,
-                    height: 480
-                });
-
-                cameraRef.current = camera;
-                await camera.start();
-            }
-
             return true;
-        } catch (error) {
-            console.error('Error initializing MediaPipe:', error);
+        } catch (err) {
+            console.error('Error initializing MediaPipe:', err);
             return false;
         }
-    }, [videoRef, onResults]);
+    }, [onResults]);
 
-    // Start processing
-    const startProcessing = useCallback(() => {
-        isProcessingRef.current = true;
-    }, []);
+    const startCamera = useCallback(async () => {
+        await initHolistic();
+        isVideoModeRef.current = false;
+        if (cameraRef.current) await cameraRef.current.stop();
 
-    // Stop processing
-    const stopProcessing = useCallback(() => {
-        isProcessingRef.current = false;
-    }, []);
-
-
-
-    // Process uploaded video file
-    const processVideoFile = useCallback(async (videoElement, onProgress) => {
-        if (!holisticRef.current) {
-            console.error('MediaPipe not initialized');
-            return false;
-        }
-
-        return new Promise((resolve) => {
-            let frameCount = 0;
-            const processFrame = async () => {
-                if (!videoElement || videoElement.paused || videoElement.ended) {
-                    resolve(true);
-                    return;
-                }
-
-                const iw = videoElement.videoWidth;
-                const ih = videoElement.videoHeight;
-
-                if (iw === 0 || ih === 0) {
-                    requestAnimationFrame(processFrame);
-                    return;
-                }
-
-                // Create letterbox canvas for this frame
-                const w = VIDEO_SIZE;
-                const h = VIDEO_SIZE;
-                const scale = Math.min(w / iw, h / ih);
-                const nw = Math.floor(iw * scale);
-                const nh = Math.floor(ih * scale);
-                const dx = Math.floor((w - nw) / 2);
-                const dy = Math.floor((h - nh) / 2);
-
-                // Fill with gray 128
-                letterboxCtxRef.current.fillStyle = '#808080';
-                letterboxCtxRef.current.fillRect(0, 0, w, h);
-
-                // Draw resized video frame
-                letterboxCtxRef.current.drawImage(videoElement, 0, 0, iw, ih, dx, dy, nw, nh);
-
-                // Send to MediaPipe
-                await holisticRef.current.send({ image: letterboxCanvasRef.current });
-
-                frameCount++;
-                if (onProgress && frameCount % 10 === 0) {
-                    const progress = (videoElement.currentTime / videoElement.duration) * 100;
-                    onProgress(progress);
-                }
-
-                // Process next frame
-                requestAnimationFrame(processFrame);
-            };
-
-            videoElement.play().then(() => {
-                processFrame();
-            }).catch(err => {
-                console.error('Error playing video:', err);
-                resolve(false);
+        if (videoRef.current) {
+            const camera = new window.Camera(videoRef.current, {
+                onFrame: processFrame,
+                width: 640,
+                height: 480
             });
-        });
-    }, []);
+            cameraRef.current = camera;
+            await camera.start();
+            setStatus('Camera running');
+        }
+    }, [initHolistic, processFrame, videoRef, setStatus]);
 
-    // Cleanup
+    const videoLoop = useCallback(() => {
+        if (!isVideoModeRef.current || !isVideoPlayingRef.current) return;
+
+        processFrame().finally(() => {
+            if (videoRef.current && !videoRef.current.paused && !videoRef.current.ended && isVideoModeRef.current && isVideoPlayingRef.current) {
+                if ('requestVideoFrameCallback' in videoRef.current) {
+                    videoRef.current.requestVideoFrameCallback(videoLoop);
+                } else {
+                    videoLoopFrameIdRef.current = requestAnimationFrame(videoLoop);
+                }
+            }
+        });
+    }, [processFrame, videoRef]);
+
+    const startVideoFile = useCallback(async (file) => {
+        if (!file) return;
+        await initHolistic();
+        isVideoModeRef.current = true;
+        isVideoPlayingRef.current = false;
+
+        if (cameraRef.current) {
+            await cameraRef.current.stop();
+            cameraRef.current = null;
+        }
+
+        if (videoLoopFrameIdRef.current) {
+            cancelAnimationFrame(videoLoopFrameIdRef.current);
+            videoLoopFrameIdRef.current = null;
+        }
+
+        if (videoRef.current) {
+            if (videoRef.current.src && videoRef.current.src.startsWith('blob:')) {
+                URL.revokeObjectURL(videoRef.current.src);
+            }
+            videoRef.current.src = URL.createObjectURL(file);
+            videoRef.current.load();
+            setStatus('Video loaded');
+        }
+    }, [initHolistic, videoRef, setStatus]);
+
+    const playVideo = useCallback(() => {
+        if (!isVideoModeRef.current || !videoRef.current) return;
+        videoRef.current.play().then(() => {
+            isVideoPlayingRef.current = true;
+            setStatus('Video playing');
+            if ('requestVideoFrameCallback' in videoRef.current) {
+                videoRef.current.requestVideoFrameCallback(videoLoop);
+            } else {
+                videoLoopFrameIdRef.current = requestAnimationFrame(videoLoop);
+            }
+        });
+    }, [videoLoop, videoRef, setStatus]);
+
+    const pauseVideo = useCallback(() => {
+        if (!isVideoModeRef.current || !videoRef.current) return;
+        videoRef.current.pause();
+        isVideoPlayingRef.current = false;
+        setStatus('Video paused');
+    }, [videoRef, setStatus]);
+
+    const stopVideo = useCallback(() => {
+        if (!isVideoModeRef.current || !videoRef.current) return;
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
+        isVideoPlayingRef.current = false;
+        setStatus('Video stopped');
+    }, [videoRef, setStatus]);
+
+    const restartVideo = useCallback(() => {
+        if (!isVideoModeRef.current || !videoRef.current) return;
+        videoRef.current.currentTime = 0;
+        playVideo();
+    }, [playVideo, videoRef]);
+
     const cleanup = useCallback(() => {
-        stopProcessing();
         if (cameraRef.current) {
             cameraRef.current.stop();
             cameraRef.current = null;
@@ -306,13 +372,27 @@ export const useMediaPipe = (videoRef, canvasRef, onTranslationUpdate, onStatusU
             holisticRef.current.close();
             holisticRef.current = null;
         }
-    }, [stopProcessing]);
+        if (videoLoopFrameIdRef.current) {
+            cancelAnimationFrame(videoLoopFrameIdRef.current);
+            videoLoopFrameIdRef.current = null;
+        }
+    }, []);
+
+    const releaseBackpressure = useCallback(() => {
+        pipelineRef.current.awaitingServer = false;
+        pipelineRef.current.awaitingServerDeadlineMs = 0;
+        uiStateRef.current.lastPredictionAtMs = performance.now();
+    }, []);
 
     return {
-        initializeMediaPipe,
-        startProcessing,
-        stopProcessing,
-        processVideoFile,
-        cleanup
+        initializeMediaPipe: initHolistic,
+        startCamera,
+        startVideoFile,
+        playVideo,
+        pauseVideo,
+        stopVideo,
+        restartVideo,
+        cleanup,
+        releaseBackpressure
     };
 };

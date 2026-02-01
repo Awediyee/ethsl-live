@@ -23,6 +23,7 @@ function ManageSubscriptionsModal({ onClose }) {
         price: '',
         lengthOfSession: '',
         numberOfSessions: '',
+        numberOfDays: '',
         historyAccess: 0,
         apiAccess: 0
     })
@@ -57,15 +58,17 @@ function ManageSubscriptionsModal({ onClose }) {
     }, [])
 
     const handleEdit = (pkg) => {
+        console.log('📦 Editing package keys:', Object.keys(pkg));
+        console.log('📦 Editing package data:', pkg);
         setEditingPackage(pkg)
         setFormData({
             packageName: pkg.package_name || pkg.packageName || '',
             description: pkg.description || '',
             price: pkg.price || '',
-            lengthOfSession: pkg.lengthOfSession || '',
-            numberOfSessions: pkg.numberOfSessions || '',
-            historyAccess: (pkg.historyAccess === true || pkg.historyAccess === 1) ? 1 : 0,
-            apiAccess: (pkg.apiAccess === true || pkg.apiAccess === 1) ? 1 : 0
+            lengthOfSession: pkg.lengthOfSession || pkg.length_of_session || '',
+            numberOfSessions: pkg.numberOfSessions || pkg.number_of_sessions || '',
+            historyAccess: (pkg.historyAccess === true || pkg.historyAccess === 1 || pkg.history_access === true || pkg.history_access === 1) ? 1 : 0,
+            apiAccess: (pkg.apiAccess === true || pkg.apiAccess === 1 || pkg.api_access === true || pkg.api_access === 1) ? 1 : 0
         })
         setIsFormOpen(true)
     }
@@ -130,8 +133,6 @@ function ManageSubscriptionsModal({ onClose }) {
                 historyAccess: Number(formData.historyAccess) || 0,
                 apiAccess: Number(formData.apiAccess) || 0
             }
-
-            console.log('🚀 Sending Exact Payload:', payload)
 
             if (editingPackage) {
                 await ApiService.updateSubscriptionPackage(editingPackage.id, payload)

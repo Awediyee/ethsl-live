@@ -20,9 +20,11 @@
 }
 
 .header-logo {
-  font-size: 28px;
-  animation: wave 2s infinite;
-  display: inline-block;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 @keyframes wave {
@@ -60,10 +62,11 @@
 }
 
 .header-title {
-  font-size: 22px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 24px;
   font-weight: 700;
   color: var(--primary-color);
-  letter-spacing: 0.5px;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 

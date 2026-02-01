@@ -3,6 +3,7 @@ import BaseModal from './BaseModal'
 import LoadingSpinner from './LoadingSpinner'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useAuth } from '../../contexts/AuthContext'
+import SecurityUtils from '../../utils/security'
 
 function LoginModal({ onClose, onLogin, onRegisterClick, onForgotPasswordClick }) {
   const { t } = useLanguage()
@@ -16,8 +17,15 @@ function LoginModal({ onClose, onLogin, onRegisterClick, onForgotPasswordClick }
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (!email || !password) {
+    const sanitizedEmail = SecurityUtils.sanitizeInput(email)
+
+    if (!sanitizedEmail || !password) {
       setError(t('fillAllFields'))
+      return
+    }
+
+    if (!SecurityUtils.isValidEmail(sanitizedEmail)) {
+      setError(t('invalidEmail'))
       return
     }
 
@@ -25,8 +33,8 @@ function LoginModal({ onClose, onLogin, onRegisterClick, onForgotPasswordClick }
     setError('')
 
     try {
-      const user = await auth.login(email, password)
-      if (onLogin) onLogin(email, password, { user })
+      const user = await auth.login(sanitizedEmail, password)
+      if (onLogin) onLogin(sanitizedEmail, password, { user })
     } catch (error) {
       console.error('Login failed:', error)
       setError(error.message || t('loginFailed'))

@@ -11,6 +11,7 @@ import { useToast } from '../contexts/ToastContext'
 import ThemeToggle from '../components/user/ThemeToggle'
 import LanguageToggle from '../components/user/LanguageToggle'
 import LoadingSpinner from '../components/common/LoadingSpinner'
+import logo from '../assets/logo.png'
 import './LoginPage.css'
 
 function LoginPage() {
@@ -55,7 +56,7 @@ function LoginPage() {
                 <LoginBackground />
                 <div className="animate-fade-in" style={{ textAlign: 'center', zIndex: 1 }}>
                     <LoadingSpinner size="large" />
-                    <p style={{ marginTop: '20px', color: 'var(--text-secondary)', fontSize: '1.1rem' }}>{t('loading') || 'Loading...'}</p>
+                    <p style={{ marginTop: '20px', color: 'var(--text-secondary)', fontSize: '1.1rem' }}>{t('loading')}</p>
                 </div>
             </div>
         )
@@ -67,7 +68,7 @@ function LoginPage() {
 
             <div className="login-page-header">
                 <div className="header-left">
-                    <div className="company-logo">✋</div>
+                    <img src={logo} alt="EthSLT Logo" className="company-logo" />
                     <div className="company-name">{t('appName')}</div>
                 </div>
                 <div className="header-controls">

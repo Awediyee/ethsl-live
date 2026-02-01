@@ -31,6 +31,11 @@ function ChangePasswordModal({ onClose }) {
             return
         }
 
+        if (newPassword === currentPassword) {
+            showToast(t('samePasswordError'), 'error')
+            return
+        }
+
         setIsLoading(true)
         try {
             await ApiService.changePassword(currentPassword, newPassword)

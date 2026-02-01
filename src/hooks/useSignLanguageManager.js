@@ -31,12 +31,32 @@ export const useSignLanguageManager = (videoRef, canvasRef, onTranslationReceive
         if (status.fps !== undefined) {
             setFps(status.fps);
         }
+        if (status.statusText !== undefined) {
+            // we could potentially expose statusText to the UI
+            console.log('MediaPipe Status:', status.statusText);
+        }
     }, []);
+
+    // Initialize core MediaPipe hook
+    const {
+        initializeMediaPipe,
+        startCamera: coreStartCamera,
+        startVideoFile: coreStartVideoFile,
+        playVideo,
+        pauseVideo,
+        stopVideo: coreStopVideo,
+        restartVideo,
+        cleanup,
+        releaseBackpressure
+    } = useMediaPipe(videoRef, canvasRef, handleTranslationUpdate, handleStatusUpdate, send);
 
     // Handle WebSocket messages for translations
     useEffect(() => {
         const cleanup = registerOnMessage((dataString) => {
             try {
+                // Signal that the server has responded to release backpressure
+                releaseBackpressure();
+
                 const data = JSON.parse(dataString);
                 if (data.prediction) {
                     handleTranslationUpdate({
@@ -50,16 +70,7 @@ export const useSignLanguageManager = (videoRef, canvasRef, onTranslationReceive
             }
         });
         return cleanup;
-    }, [registerOnMessage, handleTranslationUpdate]);
-
-    // Initialize core MediaPipe hook
-    const {
-        initializeMediaPipe,
-        startProcessing,
-        stopProcessing,
-        processVideoFile,
-        cleanup
-    } = useMediaPipe(videoRef, canvasRef, handleTranslationUpdate, handleStatusUpdate, send);
+    }, [registerOnMessage, handleTranslationUpdate, releaseBackpressure]);
 
     // Helpers
     const handleConnect = useCallback(() => {
@@ -78,6 +89,24 @@ export const useSignLanguageManager = (videoRef, canvasRef, onTranslationReceive
         }
         return true;
     }, [mediaPipeInitialized, initializeMediaPipe]);
+
+    const startCamera = useCallback(async () => {
+        // Automatically connect to WebSocket when camera starts
+        await connect(wsUrl);
+        return coreStartCamera();
+    }, [connect, wsUrl, coreStartCamera]);
+
+    const startVideoFile = useCallback(async (file) => {
+        // Automatically connect to WebSocket when video file is uploaded/started
+        await connect(wsUrl);
+        return coreStartVideoFile(file);
+    }, [connect, wsUrl, coreStartVideoFile]);
+
+    const stopVideo = useCallback(() => {
+        // Automatically disconnect from WebSocket when video/camera stops
+        coreStopVideo();
+        disconnect();
+    }, [coreStopVideo, disconnect]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -100,9 +129,12 @@ export const useSignLanguageManager = (videoRef, canvasRef, onTranslationReceive
             handleConnect,
             handleDisconnect,
             ensureInitialized,
-            startProcessing,
-            stopProcessing,
-            processVideoFile
+            startCamera,
+            startVideoFile,
+            playVideo,
+            pauseVideo,
+            stopVideo,
+            restartVideo
         }
     };
 };

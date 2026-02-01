@@ -4,14 +4,17 @@ import BaseModal from '../common/BaseModal'
 import LoadingSpinner from '../common/LoadingSpinner'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useToast } from '../../contexts/ToastContext'
+import { useModal } from '../../contexts/ModalContext'
 import ApiService from '../../services/api'
 
 function ApiKeysModal({ onClose }) {
     const { t } = useLanguage()
     const { showToast } = useToast()
+    const { actions: modalActions } = useModal()
 
     const [apiKeys, setApiKeys] = useState([])
     const [loading, setLoading] = useState(true)
+    const [isFree, setIsFree] = useState(false)
     const [pagination, setPagination] = useState({
         current_page: 1,
         total_page: 1,
@@ -30,6 +33,19 @@ function ApiKeysModal({ onClose }) {
     const loadApiKeys = useCallback(async (page = 1) => {
         try {
             setLoading(true)
+
+            // Check subscription first
+            const subRes = await ApiService.getUserCurrentSubscription()
+            const subIsFree = !subRes || subRes.isFree ||
+                (subRes.data?.package?.package_name || '').toLowerCase() === 'free' ||
+                (subRes.data?.package?.packageName || '').toLowerCase() === 'free'
+
+            if (subIsFree && subRes?.status !== 'error') {
+                setIsFree(true)
+                setLoading(false)
+                return
+            }
+
             const response = await ApiService.getApiKeys(12, page)
             if (response.status === 'success') {
                 setApiKeys(response.data.data || [])
@@ -128,7 +144,22 @@ function ApiKeysModal({ onClose }) {
     return (
         <BaseModal title={t('apiKeysTitle')} onClose={onClose}>
             <div className="api-keys-body">
-                {createdKey ? (
+                {isFree ? (
+                    <div className="key-action-view" style={{ textAlign: 'center', padding: '40px 20px' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '20px' }}>🔐</div>
+                        <h3 className="view-subtitle">{t('apiAccessDenied')}</h3>
+                        <p className="view-desc">{t('apiKeysDesc')}</p>
+                        <button
+                            className="submit-btn"
+                            style={{ marginTop: '20px', width: 'auto', padding: '12px 32px' }}
+                            onClick={() => {
+                                modalActions.setActiveModal('Subscription')
+                            }}
+                        >
+                            {t('upgradeToPro')}
+                        </button>
+                    </div>
+                ) : createdKey ? (
                     <div className="key-action-view">
                         <h3 className="view-subtitle">{t('newKeyCreatedTitle')}</h3>
                         <p className="view-desc">{t('newKeyCreatedDesc')}</p>

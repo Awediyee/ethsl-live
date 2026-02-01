@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLanguage } from '../../contexts/LanguageContext'
 import api from '../../services/api'
+import SecurityUtils from '../../utils/security'
 import './AdminConfigurationModal.css' // Reuse similar styles
 
 function AddRoleModal({ onClose, onSave, initialData = null }) {
@@ -15,9 +16,10 @@ function AddRoleModal({ onClose, onSave, initialData = null }) {
 
     const handleChange = (e) => {
         const { name, value } = e.target
+        const sanitizedValue = name === 'name' ? SecurityUtils.sanitizeInput(value) : value
         setRoleData(prev => ({
             ...prev,
-            [name]: value
+            [name]: sanitizedValue
         }))
     }
 

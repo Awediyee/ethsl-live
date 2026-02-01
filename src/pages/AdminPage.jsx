@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Header from '../components/common/Header'
 import { useAuth } from '../contexts/AuthContext'
 import { useModal } from '../contexts/ModalContext'
 import { useLanguage } from '../contexts/LanguageContext'
 import ApiService from '../services/api'
 import AnalyticsCard from '../components/admin/AnalyticsCard'
+import AdminHeader from '../components/admin/AdminHeader'
 import './AdminPage.css'
 
 function AdminPage() {
@@ -24,7 +24,6 @@ function AdminPage() {
     })
     const [loading, setLoading] = useState(true)
 
-    const isAdmin = user?.isAdmin || user?.role === 'admin' || false
     const userEmail = user?.email || ''
 
     useEffect(() => {
@@ -45,7 +44,6 @@ function AdminPage() {
                 }
             } catch (error) {
                 console.error('Failed to fetch analytics:', error)
-                // Optionally handle error state here, e.g. show toast
             } finally {
                 setLoading(false)
             }
@@ -56,27 +54,12 @@ function AdminPage() {
 
     return (
         <div className="admin-page">
-            <Header
-                isLoggedIn={isLoggedIn}
-                isAdmin={isAdmin}
-                userEmail={userEmail}
-                userData={user}
-                onLoginClick={() => navigate('/login')}
-                onLogout={logout}
-                onSettingsClick={(modalName) => {
-                    modalActions.setActiveModal(modalName)
-                }}
-            />
+            <AdminHeader user={user} onLogout={logout} />
 
             <div className="admin-container">
                 <div className="admin-header">
                     <div className="admin-header-content">
                         <h1 className="admin-title">{t('dashboard')}</h1>
-                        <p className="admin-subtitle">
-                            {t('welcomeBack')}, {user?.firstName && user?.lastName
-                                ? `${user.firstName} ${user.lastName}`
-                                : (user?.firstName || user?.lastName || userEmail.split('@')[0])}!
-                        </p>
                     </div>
                     <div className="admin-header-actions">
                         <button className="admin-btn admin-btn-secondary" onClick={() => window.location.reload()}>
@@ -180,16 +163,6 @@ function AdminPage() {
                                 </span>
                                 <span className="quick-action-text">{t('manageAdmin')}</span>
                             </button>
-                            <button className="quick-action-btn" onClick={() => modalActions.openModal('ViewReports')}>
-                                <span className="quick-action-icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <line x1="18" y1="20" x2="18" y2="10" />
-                                        <line x1="12" y1="20" x2="12" y2="4" />
-                                        <line x1="6" y1="20" x2="6" y2="14" />
-                                    </svg>
-                                </span>
-                                <span className="quick-action-text">{t('viewReports')}</span>
-                            </button>
                             <button className="quick-action-btn" onClick={() => modalActions.openModal('AdminSettings')}>
                                 <span className="quick-action-icon">
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -204,12 +177,6 @@ function AdminPage() {
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
                                 </span>
                                 <span className="quick-action-text">{t('manageSubscriptions')}</span>
-                            </button>
-                            <button className="quick-action-btn" onClick={() => modalActions.openModal('ActivityLogs')}>
-                                <span className="quick-action-icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
-                                </span>
-                                <span className="quick-action-text">{t('activityLogs')}</span>
                             </button>
                         </div>
                     </div>

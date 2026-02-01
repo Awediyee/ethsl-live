@@ -6,6 +6,7 @@ import ThemeToggle from '../user/ThemeToggle'
 import LanguageSelect from '../user/LanguageSelect'
 import { useSignLanguageManager } from '../../hooks/useSignLanguageManager'
 import { useWebSocket } from '../../contexts/WebSocketContext'
+import SecurityUtils from '../../utils/security'
 import './AdminConfigurationModal.css'
 
 function AdminConfigurationModal({ onClose, onSave, onLogout }) {
@@ -27,7 +28,7 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
     const [activeTab, setActiveTab] = useState('general')
     const [config, setConfig] = useState({
         siteName: t('appTitle'),
-        websocketUrl: localStorage.getItem('websocket_url') || 'ws://localhost:8000',
+        websocketUrl: import.meta.env.VITE_WS_URL || '',
         maintenanceMode: false,
         allowRegistration: true,
         emailNotifications: true,
@@ -36,16 +37,14 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target
+        const finalValue = name === 'siteName' ? SecurityUtils.sanitizeInput(value) : (type === 'checkbox' ? checked : value)
+
         setConfig(prev => ({
             ...prev,
-            [name]: type === 'checkbox' ? checked : value
+            [name]: finalValue
         }))
 
-        // Auto-save WebSocket URL to localStorage when changed
-        if (name === 'websocketUrl') {
-            localStorage.setItem('websocket_url', value)
-            setWsUrl(value)
-        }
+        // WebSocket URL is now read-only and managed via environment variables
     }
 
     const handleSave = () => {
@@ -57,9 +56,7 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
         onClose()
     }
 
-    const onConnect = () => {
-        handleConnect(config.websocketUrl)
-    }
+    // Manual connection is removed per request
 
 
 
@@ -140,29 +137,11 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
                                             type="text"
                                             name="websocketUrl"
                                             value={config.websocketUrl}
-                                            onChange={handleChange}
+                                            readOnly
                                             className="modal-input"
-                                            placeholder="ws://localhost:8000"
-                                            disabled={wsConnected}
-                                            style={{ flex: 1 }}
+                                            placeholder="Not configured"
+                                            style={{ flex: 1, backgroundColor: 'var(--bg-primary)', opacity: 0.8, cursor: 'default' }}
                                         />
-                                        {!wsConnected ? (
-                                            <button
-                                                className="btn-upload"
-                                                onClick={onConnect}
-                                                style={{ padding: '10px 20px', background: '#4CAF50', whiteSpace: 'nowrap' }}
-                                            >
-                                                {t('connect')}
-                                            </button>
-                                        ) : (
-                                            <button
-                                                className="btn-upload"
-                                                onClick={handleDisconnect}
-                                                style={{ padding: '10px 20px', background: '#ff4444', whiteSpace: 'nowrap' }}
-                                            >
-                                                {t('disconnect')}
-                                            </button>
-                                        )}
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
                                         <span
@@ -179,7 +158,7 @@ function AdminConfigurationModal({ onClose, onSave, onLogout }) {
                                         </span>
                                     </div>
                                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                                        {t('websocketUrlDesc')}
+                                        {t('websocketUrlEnvNotice') || 'This URL is managed via system environment variables and cannot be modified here.'}
                                     </p>
                                 </div>
                             </div>

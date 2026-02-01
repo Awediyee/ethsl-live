@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import './Menu.css'
+import logo from '../../assets/logo.png'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useToast } from '../../contexts/ToastContext'
 import ApiService from '../../services/api'
 
 function UserMenu({ onClose, user, onLogout, onSettingsClick }) {
   const { t } = useLanguage()
+  const { showToast } = useToast()
   const [subscription, setSubscription] = useState(null)
 
   useEffect(() => {
@@ -25,7 +28,17 @@ function UserMenu({ onClose, user, onLogout, onSettingsClick }) {
 
   const handleSettingsClick = (e, tab) => {
     e.preventDefault()
-    onSettingsClick && onSettingsClick(tab)
+
+    const isFree = !subscription || subscription.isFree ||
+      (subscription.package?.package_name || '').toLowerCase() === 'free' ||
+      (subscription.package?.packageName || '').toLowerCase() === 'free'
+
+    if (tab === 'Api' && isFree) {
+      showToast(t('apiAccessDenied'), 'info')
+      onSettingsClick && onSettingsClick('Subscription')
+    } else {
+      onSettingsClick && onSettingsClick(tab)
+    }
     onClose()
   }
 
@@ -39,9 +52,7 @@ function UserMenu({ onClose, user, onLogout, onSettingsClick }) {
             </button>
 
             <div className="menu-brand">
-              <div className="brand-logo">
-                <span className="hand-icon">✋</span>
-              </div>
+              <img src={logo} alt="EthSLT Logo" className="menu-brand-logo" />
               <div className="brand-text">
                 {t('appTitle')}
               </div>
@@ -49,26 +60,53 @@ function UserMenu({ onClose, user, onLogout, onSettingsClick }) {
           </div>
 
           <nav className="menu-nav">
-            <a href="#history" onClick={(e) => handleSettingsClick(e, 'History')}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              {t('history')}
-            </a>
-            <a href="#api" onClick={(e) => handleSettingsClick(e, 'Api')}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" /></svg>
-              {t('api')}
-            </a>
-            <a href="#subscription" onClick={(e) => handleSettingsClick(e, 'Subscription')}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 00 2 2h12a2 2 0 00 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
-              {t('subscription')}
-            </a>
-            <a href="#settings" onClick={(e) => handleSettingsClick(e, 'Settings')}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" /></svg>
-              {t('settings')}
-            </a>
-            <a href="#about" onClick={(e) => handleSettingsClick(e, 'About')}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
-              {t('about')}
-            </a>
+            {user?.isAdmin ? (
+              <>
+                <a href="/admin" onClick={(e) => { e.preventDefault(); onClose(); window.location.href = '/admin' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                  {t('dashboard') || 'Dashboard'}
+                </a>
+                <a href="#users" onClick={(e) => handleSettingsClick(e, 'ManageUsers')}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                  {t('manageUsers') || 'Manage Users'}
+                </a>
+                <a href="#roles" onClick={(e) => handleSettingsClick(e, 'ManageRoles')}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"></path></svg>
+                  {t('manageRoles') || 'Manage Roles'}
+                </a>
+                <a href="#subscriptions" onClick={(e) => handleSettingsClick(e, 'ManageSubscriptions')}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+                  {t('manageSubscriptions') || 'Subscriptions'}
+                </a>
+                <a href="#settings" onClick={(e) => handleSettingsClick(e, 'AdminSettings')}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" /></svg>
+                  {t('systemSettings') || 'Settings'}
+                </a>
+              </>
+            ) : (
+              <>
+                <a href="#history" onClick={(e) => handleSettingsClick(e, 'History')}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  {t('history')}
+                </a>
+                <a href="#api" onClick={(e) => handleSettingsClick(e, 'Api')}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" /></svg>
+                  {t('api')}
+                </a>
+                <a href="#subscription" onClick={(e) => handleSettingsClick(e, 'Subscription')}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 00 2 2h12a2 2 0 00 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+                  {t('subscription')}
+                </a>
+                <a href="#settings" onClick={(e) => handleSettingsClick(e, 'Settings')}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" /></svg>
+                  {t('settings')}
+                </a>
+                <a href="#about" onClick={(e) => handleSettingsClick(e, 'About')}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
+                  {t('about')}
+                </a>
+              </>
+            )}
           </nav>
         </div>
 
@@ -84,7 +122,7 @@ function UserMenu({ onClose, user, onLogout, onSettingsClick }) {
                   : (user?.firstName || user?.lastName || user?.email?.split('@')[0])}
               </h2>
               <p className="menu-display-email">{user?.email}</p>
-              {subscription && (
+              {subscription && !user?.isAdmin && (
                 <div className="menu-user-subscription">
                   <span className={`sub-badge ${subscription.isFree ? 'free' : 'pro'}`}>
                     {subscription.package?.package_name || subscription.package?.packageName || t('freeTier')}

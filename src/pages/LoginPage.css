@@ -39,15 +39,20 @@
 }
 
 .company-name {
-    font-size: 2.5rem;
-    font-weight: 700;
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.8rem;
+    font-weight: 800;
     color: var(--text-primary);
-    letter-spacing: 0.5px;
+    letter-spacing: -0.03em;
     transition: color 0.3s;
 }
 
 .company-logo {
-    font-size: 2.5rem;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    object-fit: cover;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     transition: transform 0.3s ease;
 }
 
@@ -68,8 +73,9 @@
 }
 
 .login-page-title {
+    font-family: 'Outfit', sans-serif;
     font-size: 1.8rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-primary);
     margin: 0;
     transition: color 0.3s;

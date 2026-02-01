@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './Header.css'
 import UserMenu from '../user/UserMenu'
+import logo from '../../assets/logo.png'
 
 import { useLanguage } from '../../contexts/LanguageContext'
 
@@ -12,7 +13,7 @@ function Header({ isLoggedIn, isAdmin, onLoginClick, userEmail, userData, onLogo
     <header className="header">
       <div className="header-content">
         <div className="header-brand">
-          <span className="header-logo">✋</span>
+          <img src={logo} alt="EthSLT Logo" className="header-logo" />
           <h1 className="header-title">{t('appName')}</h1>
         </div>
         <div className="header-actions">
